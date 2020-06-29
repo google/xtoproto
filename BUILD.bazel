@@ -1,0 +1,5 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/google/xtoproto
+# gazelle:proto_import_prefix github.com/google/xtoproto
+gazelle(name = "gazelle")
