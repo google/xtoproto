@@ -5,25 +5,21 @@ definition (a `.proto` file) from XML and CSV files, and (2) generating
 runtime code from translating XML and CSV files to proto using the mappings
 from (1).
 
-## Quickstart {#quickstart}
+## Not yet operable
 
-### Stage 1 {#quickstart-stage-1}
+This repository was created on June 29, 2020. We are incrementally migrating the
+code onto Github, and the project will not be functional until that migration is
+finished. This README will be updated with instructions about how to use the
+project once the migration is complete. In the mean time, feel free to browse
+the code.
 
-```shell
-infer_csv_to_proto_mapping -- \
-  --csv <path to CSV file that fits in memory> \
-  --mapping_out <path to .pbtxt output> \
-  --package <package for the generated .proto file> \
-  --message <short name for the generated message>
+## Building
+
+The project is buildable with Bazel. We also plan to make it buildable using `go
+build` after the initial migration effort.
+
 ```
-
-### Stage 2 {#quickstart-stage-2}
-
-```shell
-csv_to_proto_codegen -- \
-  --mapping_pbtxt <path to .pbtxt output from stage 1> \
-  --proto_out <path to output .proto file> \
-  --go_out <path to output .go file with generaed translation code>
+bazel build //...
 ```
 
 ## Disclaimer
