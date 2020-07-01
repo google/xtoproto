@@ -110,8 +110,8 @@ func (s *service) protoPath(req *spb.GenerateCodeRequest) (string, string, error
 
 // converterGoPath returns the path to the generated go code file.
 //
-// The first return value is the path the generated go file including the path
-// to the workspace directory. The second return value is the path of the
+// The first return value is the path to the generated go file including the
+// path to the workspace directory. The second return value is the path of the
 // file relative to the workspace root.
 func (s *service) converterGoPath(req *spb.GenerateCodeRequest) (string, string, error) {
 	fileName := func() string {
@@ -123,11 +123,12 @@ func (s *service) converterGoPath(req *spb.GenerateCodeRequest) (string, string,
 		}
 		return fmt.Sprintf("%s.go", strcase.SnakeCase(req.GetMapping().GetMessageName()))
 	}()
-	fullPath, err := pathFromParts(s.workspacePathForRequest(req), req.GetConverter().GetDirectory(), fileName)
+	workspaceRelativePath := path.Join(req.GetConverter().GetDirectory(), fileName)
+	fullPath, err := pathFromParts(s.workspacePathForRequest(req), workspaceRelativePath, fileName)
 	if err != nil {
 		return "", "", err
 	}
-	workspaceRelativePath := path.Join(req.GetProtoDefinition().GetDirectory(), fileName)
+
 	return fullPath, workspaceRelativePath, nil
 }
 
