@@ -178,7 +178,7 @@ func Test_service_GenerateCode(t *testing.T) {
 			}
 			ignoreFileContents := protocmp.IgnoreFields(proto.MessageV2(&spb.GenerateCodeResponse_File{}), "new_contents")
 			if diff := cmp.Diff(tt.want, got, protocmp.Transform(), cmpopts.EquateEmpty(), ignoreFileContents); diff != "" {
-				t.Errorf("uexpected diff in service.Infer results (-want,+got): %s", diff)
+				t.Errorf("unexpected diff in service.Infer results (-want,+got): %s", diff)
 			}
 		})
 	}
