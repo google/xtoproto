@@ -28,3 +28,6 @@
 # User-specific .bazelrc
 user.bazelrc
 *.google.md
+
+# Don't include generated .pb.go files in the repo.
+*.pb.go

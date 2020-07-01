@@ -1,0 +1,4 @@
+# generate_pb_go_files can be used to output .pb.go files to subdirectories. Bazel
+# should not consider these generated files because it uses the .proto files.
+
+# gazelle:exclude **/*.pb.go
