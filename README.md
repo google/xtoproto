@@ -22,6 +22,19 @@ build` after the initial migration effort.
 bazel build //...
 ```
 
+## Development
+
+`gopls` [does not yet work with
+bazel](https://github.com/golang/go/issues/37205). In the meantime, it is
+convenient to generate the `.pb.go` files used within this project so that gopls
+can pick them up and make autocomplete work. To do this, issue the following
+command from the root of the checked out xtoproto repository:
+
+
+```shell
+ bazel run //releasing/generate_pb_go_files -- -output_dir $PWD/proto --alsologtostderr
+```
+
 ## Disclaimer
 
 This is not an official Google product.
