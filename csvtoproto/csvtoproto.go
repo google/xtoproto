@@ -133,7 +133,7 @@ func sortImports(paths []string) []string {
 		m[p] = true
 	}
 	var out []string
-	for key, _ := range m {
+	for key := range m {
 		out = append(out, key)
 	}
 	sort.Strings(out)
