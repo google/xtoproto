@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "csvtoproto.go",
+        "csvtoproto_go_codegen.go",
+    ],
+    importpath = "github.com/google/xtoproto/csvtoproto",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//proto/recordtoproto:go_default_library",
+        "@com_github_golang_glog//:go_default_library",
+        "@com_github_mitchellh_go_wordwrap//:go_default_library",
+        "@com_github_stoewer_go_strcase//:go_default_library",
+    ],
+)

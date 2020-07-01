@@ -91,8 +91,8 @@ func (ip *InferredProto) FormattedMapping(template *pb.RecordProtoMapping) strin
 	proto.Merge(out, template)
 	proto.Merge(out, ip.Mapping())
 
-	return fmt.Sprintf(`# proto-file: third_party/golang/xtoproto/proto/csvtoproto.proto
-# proto-message: csvtoproto.RecordProtoMapping
+	return fmt.Sprintf(`# proto-file: github.com/google/xtoproto/proto/recordtoproto/recordtoproto.proto
+# proto-message: xtoproto.RecordProtoMapping
 
 %s
 `, proto.MarshalTextString(out))

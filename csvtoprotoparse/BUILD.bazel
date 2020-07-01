@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["csvtoprotoparse.go"],
+    importpath = "github.com/google/xtoproto/csvtoprotoparse",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@com_github_golang_protobuf//ptypes:go_default_library_gen",
+        "@org_golang_google_protobuf//types/known/timestamppb:go_default_library",
+    ],
+)
