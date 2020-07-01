@@ -123,13 +123,12 @@ func (s *service) converterGoPath(req *spb.GenerateCodeRequest) (string, string,
 		}
 		return fmt.Sprintf("%s.go", strcase.SnakeCase(req.GetMapping().GetMessageName()))
 	}()
-	workspaceRelativePath := path.Join(req.GetConverter().GetDirectory(), fileName)
-	fullPath, err := pathFromParts(s.workspacePathForRequest(req), workspaceRelativePath, fileName)
+	fullPath, err := pathFromParts(s.workspacePathForRequest(req), req.GetConverter().GetDirectory(), fileName)
 	if err != nil {
 		return "", "", err
 	}
 
-	return fullPath, workspaceRelativePath, nil
+	return fullPath, path.Join(req.GetConverter().GetDirectory(), fileName), nil
 }
 
 func (s *service) workspacePathForRequest(req *spb.GenerateCodeRequest) string {

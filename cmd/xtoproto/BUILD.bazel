@@ -1,0 +1,19 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["xtoproto.go"],
+    importpath = "github.com/google/xtoproto/cmd/xtoproto",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//proto/service:go_default_library",
+        "//service:go_default_library",
+        "@org_golang_google_protobuf//encoding/prototext:go_default_library",
+    ],
+)
+
+go_binary(
+    name = "xtoproto",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)

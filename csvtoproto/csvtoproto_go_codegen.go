@@ -32,7 +32,7 @@ import (
   "fmt"
   "io"
 
-  "github.com/google/xtoproto/csvtoprotoparse/csvtoprotoparse"
+  "github.com/google/xtoproto/csvtoprotoparse"
   "github.com/google/xtoproto/protocp"
   "google.golang.org/protobuf/proto"
 
