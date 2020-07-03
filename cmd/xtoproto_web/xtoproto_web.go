@@ -46,6 +46,7 @@ func run() error {
 		if err := fs.outputGithubPagesFiles(*outputStaticFilesDir); err != nil {
 			return fmt.Errorf("problem copying files to %s: %w", *outputStaticFilesDir, err)
 		}
+		return nil
 	}
 	fmt.Printf("staring server at %s\n", *addr)
 	return http.ListenAndServe(*addr, http.FileServer(fs))
