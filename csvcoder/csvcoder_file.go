@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-// FileParser is
+// FileParser is an object used to parse an entire CSV file.
 type FileParser struct {
 	r        *csv.Reader
 	filePath string

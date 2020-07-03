@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/xtoproto/textcoder"
 )
 
 func init() {
@@ -44,7 +45,7 @@ type implicitFields struct {
 type measurements struct {
 	// Both fields are backed by the same column.
 	Dist  distance
-	Dist2 *distance `csv:"Dist"`
+	Dist2 *distance `csv-skip:"true"`
 }
 
 type distance float64 // in meters
@@ -108,10 +109,6 @@ func ExampleRegisterRowStruct() {
 
 	fmt.Printf("%q weighs %d pounds", henry.Name, int(henry.WeightPounds))
 	// Output: "Henry" weighs 32 pounds
-}
-
-func ExampleRegisterTextCoder() {
-
 }
 
 func TestParseCSVRow(t *testing.T) {
@@ -194,8 +191,9 @@ func TestFileParser(t *testing.T) {
 			joinWithNewlines(`Dist,extra`, `50  ,x`, ` 50 km,`),
 			&measurements{},
 			[]interface{}{
-				&measurements{Dist: 50, Dist2: distancePtr(50)},
-				&measurements{Dist: 50000, Dist2: distancePtr(50000)},
+				// TODO(reddaly): Restore support for pointer fields.
+				&measurements{Dist: 50, Dist2: nil /* distancePtr(50) */},
+				&measurements{Dist: 50000, Dist2: nil /* distancePtr(50000) */},
 			},
 			nil,
 			nil,
@@ -244,7 +242,7 @@ func joinWithNewlines(s ...string) string {
 func Test_ParseCell(t *testing.T) {
 	type X int64
 
-	RegisterTextCoder(
+	textcoder.Register(
 		reflect.TypeOf(X(3)),
 		nil,
 		func(value string, dst *X) error {
