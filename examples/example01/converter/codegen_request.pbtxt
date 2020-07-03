@@ -1,0 +1,41 @@
+mapping:  {
+  package_name:  "mypackage"
+  message_name:  "MyMessage"
+  column_to_field_mappings:  {
+    col_name:  "name"
+    proto_name:  "name"
+    proto_type:  "string"
+    proto_tag:  1
+    comment:  "Field type inferred from 1 unique values in 1 rows; 1 most common: \"bobby\" (1)"
+  }
+  column_to_field_mappings:  {
+    column_index:  1
+    col_name:  "age"
+    proto_name:  "age"
+    proto_type:  "int64"
+    proto_tag:  2
+    comment:  "Field type inferred from 1 unique values in 1 rows; 1 most common: \"4\" (1)"
+  }
+  column_to_field_mappings:  {
+    column_index:  2
+    col_name:  "height"
+    proto_name:  "height"
+    proto_type:  "string"
+    proto_tag:  3
+    comment:  "Field type inferred from 1 unique values in 1 rows; 1 most common: \"36in\" (1)"
+  }
+  go_options:  {
+    go_package_name:  "converter"
+    proto_import:  "github.com/google/xtoproto/examples/example01"
+  }
+}
+proto_definition:  {
+  directory:  "generated"
+  proto_file_name:  "example.proto"
+  update_build_rules:  true
+}
+converter:  {
+  directory:  "generated"
+  go_file_name:  "exampleconv.go"
+  update_build_rules:  true
+}

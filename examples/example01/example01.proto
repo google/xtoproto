@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package mypackage;
+
+
+
+message MyMessage {
+  // Field type inferred from 1 unique values in 1 rows; 1 most common: "bobby"
+  // (1)
+  //
+  // csv field: "name"
+  string name = 1;
+
+  // Field type inferred from 1 unique values in 1 rows; 1 most common: "4" (1)
+  //
+  // csv field: "age"
+  int64 age = 2;
+
+  // Field type inferred from 1 unique values in 1 rows; 1 most common: "36in"
+  // (1)
+  //
+  // csv field: "height"
+  string height = 3;
+}

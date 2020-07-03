@@ -102,6 +102,20 @@ func (r *Reader) Read() (*{{.message_type}}, error) {
 	return msg, nil
 }
 
+
+// ReadAll returns the remaining {{.message_type}} values from the file.
+func (r *Reader) ReadAll() (records []*{{.message_type}}, err error) {
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			return records, nil
+		} else if err != nil {
+			return records, err
+		}
+		records = append(records, rec)
+	}
+}
+
 // ReadMessage returns the next {{.message_type}} from the file.
 func (r *Reader) ReadMessage() (proto.Message, error) {
 	return r.Read()

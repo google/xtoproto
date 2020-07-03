@@ -1,0 +1,23 @@
+load("@xtoproto//bazel:defs.bzl", "go_xtoproto_converter_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_test")
+
+# gazelle:resolve go github.com/google/xtoproto/examples/example01/converter :go_default_library
+go_xtoproto_converter_library(
+    name = "go_default_library",
+    request = "codegen_request.pbtxt",
+    importpath = "github.com/google/xtoproto/examples/example01/converter",
+    deps = [
+        "//examples/example01:mypackage_go_proto",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["converter_test.go"],
+    deps = [
+        "//examples/example01:go_default_library",
+        "//examples/example01/converter:go_default_library",
+        "@com_github_google_go_cmp//cmp:go_default_library",
+        "@org_golang_google_protobuf//testing/protocmp:go_default_library",
+    ],
+)
