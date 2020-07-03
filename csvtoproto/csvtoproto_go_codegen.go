@@ -124,7 +124,7 @@ func (r *Reader) ReadMessage() (proto.Message, error) {
 // ParseRow returns a protobuf-version of a CSV row.
 func ParseRow(row []string) (*{{.message_type}}, []error) {
 	output := &{{.message_type}}{}
-  var errs []error
+	var errs []error
 	for _, parser := range fieldParsers {
 		if err := parser(row, output); err != nil {
 			errs = append(errs, err)

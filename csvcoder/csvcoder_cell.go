@@ -18,9 +18,8 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
-	"strings"
 
-	"github.com/golang/glog"
+	"github.com/google/xtoproto/textcoder"
 )
 
 var (
@@ -30,24 +29,6 @@ var (
 		return reflect.TypeOf(ptr).Elem()
 	}()
 )
-
-// RegisterTextCoder registers an encoding function and a decoding function
-// for parsing and printing values of the provided type.
-//
-// If the provided type is T, the decoder should be of the form
-// func(string, *T) error, and the encoder should be of the form
-// func(T) (string, error).
-func RegisterTextCoder(t reflect.Type, encoder, decoder interface{}) {
-	if err := SafeRegisterTextCoder(t, encoder, decoder); err != nil {
-		panic(err)
-	}
-}
-
-// SafeRegisterTextCoder is like RegisterTextCoder but returns an error instead
-// of panicking if an error is encountered.
-func SafeRegisterTextCoder(t reflect.Type, encoder, decoder interface{}) error {
-	return registerCellParser(t, encoder, decoder)
-}
 
 // CellContext is passed to the function parsing a single CSV cell.
 type CellContext struct {
@@ -78,16 +59,20 @@ func ParseCell(ctx *CellContext, value string, dst interface{}) error {
 
 // registeredCellParser is used ins
 type registeredCellParser struct {
-	impl cellParser
+	impl    cellParser
+	decoder textcoder.Decoder
 }
 
 // ParseCSVCell dispatches to the underlying implementation. This indirection
-// allows newly registered cell parsers to orverride the older registered value.
+// allows newly registered cell parsers to override the older registered value.
 func (cp *registeredCellParser) ParseCSVCell(ctx *CellContext, value string, field reflect.Value) error {
-	if cp.impl == nil {
-		panic("internal error in csvcoder: registeredCellParser impl is nil")
+	if cp.impl != nil {
+		return cp.impl.ParseCSVCell(ctx, value, field)
 	}
-	return cp.impl.ParseCSVCell(ctx, value, field)
+	if cp.decoder != nil {
+		return cp.decoder.DecodeText(textcoder.NewContext().WithValue("csvcoder.CellContext", ctx), value, field.Interface())
+	}
+	panic("internal error in csvcoder: registeredCellParser has no implementation")
 }
 
 // getOrCreateCellParserForType returns an object for parsing the contents of a
@@ -95,55 +80,24 @@ func (cp *registeredCellParser) ParseCSVCell(ctx *CellContext, value string, fie
 //
 // The argument is typically a pointer type.
 func getOrCreateCellParserForType(t reflect.Type) (cellParser, error) {
+	if t.Kind() != reflect.Ptr {
+		return nil, fmt.Errorf("internal error: must only pass pointers to getOrCreateCellParserForType, got %v", t)
+	}
+
 	parser := defaultRegistry.cellParsers[t]
 	if parser == nil {
-		parser = &registeredCellParser{nil}
+		parser = &registeredCellParser{}
 		defaultRegistry.cellParsers[t] = parser
 	}
 	if parser.impl != nil {
 		return parser, nil
 	}
-	checkedExplicitParsers := []reflect.Type{t}
-
-	if t.Kind() == reflect.Ptr {
-		pointedToType := t.Elem()
-		pointeeParser := defaultRegistry.cellParsers[pointedToType]
-		if pointeeParser != nil {
-			parser.impl = simpleCellParser(func(ctx *CellContext, value string, field reflect.Value) error {
-				if field.IsNil() {
-					field.Set(reflect.New(pointedToType))
-				}
-				return pointeeParser.ParseCSVCell(ctx, value, field.Elem())
-			})
-			return parser, nil
-		}
-
-		checkedExplicitParsers = append(checkedExplicitParsers, pointedToType)
-	}
-
-	if t.Implements(textUnmarshalerInterface) {
-		if t.Kind() == reflect.Ptr {
-			pointedToType := t.Elem()
-			parser.impl = simpleCellParser(func(ctx *CellContext, value string, field reflect.Value) error {
-				if field.IsNil() {
-					field.Set(reflect.New(pointedToType))
-				}
-				return field.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value))
-			})
-		} else {
-			parser.impl = simpleCellParser(func(ctx *CellContext, value string, field reflect.Value) error {
-				return field.Interface().(encoding.TextUnmarshaler).UnmarshalText([]byte(value))
-			})
-		}
+	if dec := textcoder.DefaultRegistry().GetDecoder(t.Elem()); dec != nil {
+		parser.decoder = dec
 		return parser, nil
 	}
 
-	var typeStrings []string
-	for _, t := range checkedExplicitParsers {
-		typeStrings = append(typeStrings, t.String())
-	}
-
-	return nil, fmt.Errorf("no cell parser registered for any type in [%s], and %v does not implement encoding.TextUnmarshaler", strings.Join(typeStrings, ", "), t)
+	return nil, fmt.Errorf("no cell parser registered for type %v", t)
 
 }
 
@@ -174,50 +128,6 @@ var (
 var (
 	stringType = reflect.TypeOf("abc")
 )
-
-func registerCellParser(t reflect.Type, encoder, decoder interface{}) error {
-	{
-		if encoder == nil {
-			glog.Warningf("encoder for %v is nil", t)
-		} else {
-			enc := reflect.TypeOf(encoder)
-			if err := checkSignature(
-				enc,
-				[]reflect.Type{t},
-				[]reflect.Type{stringType, errorInterfaceType}); err != nil {
-				return fmt.Errorf("cell encoder doesn't match expected signature: %w", err)
-			}
-		}
-	}
-	if decoder == nil {
-		return fmt.Errorf("decoder for %v is nil", t)
-	}
-	rdec := reflect.TypeOf(decoder)
-	if err := checkSignature(
-		rdec,
-		[]reflect.Type{stringType, reflect.PtrTo(t)},
-		[]reflect.Type{errorInterfaceType}); err != nil {
-		return fmt.Errorf("cell parser decoder doesn't match expected signature: %w", err)
-	}
-	decFn := reflect.ValueOf(decoder)
-
-	// Rather than completely overwrite the entry, keep it so that existing
-	// references to it are not invalidated.
-	existing := defaultRegistry.cellParsers[t]
-	if existing == nil {
-		existing = &registeredCellParser{nil}
-		defaultRegistry.cellParsers[t] = existing
-	}
-
-	existing.impl = simpleCellParser(func(_ *CellContext, value string, field reflect.Value) error {
-		out := decFn.Call([]reflect.Value{reflect.ValueOf(value), field.Addr()})[0].Interface()
-		if out == nil {
-			return nil
-		}
-		return out.(error)
-	})
-	return nil
-}
 
 func checkSignature(f reflect.Type, in, out []reflect.Type) error {
 	if f.Kind() != reflect.Func {

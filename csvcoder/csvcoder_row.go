@@ -12,10 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package csvcoder decodes Go types from CSV records using struct tags.
+// Package csvcoder decodes Go types from CSV records using struct tags, similar
+// to encoding/csv and encoding/xml packages in the standard library.
 //
-// The user should typically define a structure to hold the parsed value of a
-// CSV record.
+// Like the standard library packages for JSON and XML encoding, this package
+// uses tags on struct fields to specify the correspondence of a CSV column with
+// a struct field. See the examples for full usage, but to get a sense of how
+// csvcoder works, observe the following structure definition:
+//
+//		type mass float64
+//
+//		type species struct {
+//			Name                string `csv:"name"`
+//			EstimatedPopulation int    `csv:"population_estimate"`
+//			Mass                mass   `csv:"weight_kg"`
+//		}
+//		csvcoder.RegisterRowStruct(reflect.TypeOf(&species{}))
+//
+// Unlike the standard library packages, this package uses textcoder for
+// decoding textual values, allowing any package to provide a decoder for a
+// given type rather than using methods of the type.
 package csvcoder
 
 import (
