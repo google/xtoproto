@@ -1,197 +1,160 @@
-// Copyright 2020 Google LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     https://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-// +build js wasm
-
-// Program xtoproto_web is a web application intended to be compiled with WASM
-// that infers .proto definitions from record-oriented files (CSV, XML, etc.).
-//
-// The application can be run with the following command:
-//
-//     GOOS=js GOARCH=wasm go build  -o main.wasm xtoproto_web.go && goexec 'http.ListenAndServe(`:8080`, http.FileServer(http.Dir(`.`)))'
-//
-// With bazel:
-//
-//     bazel build --platforms=@io_bazel_rules_go//go/toolchain:js_wasm //cmd/...
 package main
 
 import (
-	"context"
-	"encoding/json"
+	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
-	"syscall/js"
-	"time"
+	"path/filepath"
+	"strings"
 
-	"github.com/google/xtoproto/service"
-	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/proto"
-
-	spb "github.com/google/xtoproto/proto/service"
-)
-
-const (
-	outDirMode  os.FileMode = 0770
-	outFileMode os.FileMode = 0660
+	"github.com/bazelbuild/rules_go/go/tools/bazel"
+	"github.com/golang/glog"
 )
 
 var (
-	cfg = &config{
-		defaultWorkspaceDir: "/tmp/example-workspace",
-		csvContents: `hello,name
-5,5
-f,x`,
-	}
+	addr                 = flag.String("addr", ":8081", "address to use for http serving")
+	outputStaticFilesDir = flag.String("output_dir", "", "if non-empty, a copy of the static files will be output to this directory. This is used to generate the github pages release.")
 
-	readFile service.FileReaderFunc = func(_ context.Context, path string) ([]byte, error) {
-		return nil, fmt.Errorf("reading files not supported on web (%q)", path)
-	}
-	writeFile service.FileWriterFunc = func(_ context.Context, path string, data []byte) error {
-		// writing files not supported on web
-		return nil
-	}
-
-	defaultInferRequest = func() *spb.InferRequest {
-		return &spb.InferRequest{
-			GoPackageName: "example",
-			GoProtoImport: "generated/example_go_proto",
-			InputFormat:   spb.Format_CSV,
-			MessageName:   "ExampleRecord",
-			PackageName:   "mycompany.mypackage",
-		}
-	}
-	defaultGenerateCodeRequest = func() *spb.GenerateCodeRequest {
-		return &spb.GenerateCodeRequest{
-			ProtoDefinition: &spb.GenerateCodeRequest_ProtoDefinition{
-				Directory:        "generated",
-				ProtoFileName:    "example.proto",
-				UpdateBuildRules: true,
-			},
-			Converter: &spb.GenerateCodeRequest_Converter{
-				Directory:        "generated/go",
-				GoFileName:       "exampleconv.go",
-				UpdateBuildRules: true,
-			},
-		}
+	staticFiles = []staticFile{
+		{"playground.wasm", "playground/playground.wasm"},
+		{"index.html", "playground/index.html"},
+		{"playground.html", "playground/index.html"},
+		{"prism-theme-dark.css", "playground/prism-theme-dark.css"},
+		{"prism-theme-light.css", "playground/prism-theme-light.css"},
+		{"wasm_exec.js", "third_party/wasm_exec.js"},
 	}
 )
 
-type config struct {
-	defaultWorkspaceDir string
-	csvContents         string
+type staticFile struct {
+	webPath, runfilesPath string
 }
 
 func main() {
-	if err := run(context.Background()); err != nil {
-		fmt.Printf("fatal error: %v", err)
+	flag.Parse()
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "fatal error: %v\n", err)
+		os.Exit(1)
 	}
-	time.Sleep(time.Hour * 10000)
 }
 
-func run(ctx context.Context) error {
-	registerJSEntryPoints(service.New(cfg.defaultWorkspaceDir, readFile, writeFile))
-	return nil
+func run() error {
+	printRunfiles()
+	fs := makeFilesys()
+	if *outputStaticFilesDir != "" {
+		if err := fs.outputGithubPagesFiles(*outputStaticFilesDir); err != nil {
+			return fmt.Errorf("problem copying files to %s: %w", *outputStaticFilesDir, err)
+		}
+	}
+	fmt.Printf("staring server at %s\n", *addr)
+	return http.ListenAndServe(*addr, http.FileServer(fs))
 }
 
-type jsRequest struct {
-	InferRequest        string `json:"infer_request"`
-	GenerateCodeRequest string `json:"codegen_request"`
-	CSV                 string `json:"csv"`
-}
-
-type jsResponse struct {
-	Error            string                    `json:"error"`
-	InferResponse    *spb.InferResponse        `json:"infer_response"`
-	CodeGenResponse  *spb.GenerateCodeResponse `json:"codegen_response"`
-	EffectiveRequest *jsRequest                `json:"request"`
-}
-
-func unmarshalJSONMerge(str string, dst proto.Message) error {
-	dst1 := proto.Clone(dst)
-	if err := prototext.Unmarshal([]byte(str), dst1); err != nil {
+func printRunfiles() error {
+	rfe, err := bazel.ListRunfiles()
+	if err != nil {
 		return err
 	}
-	proto.Merge(dst, dst1)
-	return nil
-}
-
-func handleJSRequest(s spb.XToProtoServiceServer, req *jsRequest) *jsResponse {
-	ctx := context.Background()
-	req1 := defaultInferRequest()
-	req2 := defaultGenerateCodeRequest()
-
-	if err := unmarshalJSONMerge(req.InferRequest, req1); err != nil {
-		return &jsResponse{Error: err.Error()}
-	}
-	if err := unmarshalJSONMerge(req.GenerateCodeRequest, req2); err != nil {
-		return &jsResponse{Error: err.Error()}
-	}
-	req1.ExampleInputs = []*spb.InputFile{
-		{Spec: &spb.InputFile_InputContent{InputContent: []byte(req.CSV)}},
-	}
-
-	resp1, err := s.Infer(ctx, req1)
-	if err != nil {
-		return &jsResponse{Error: err.Error()}
-	}
-
-	req2.Mapping = resp1.BestMappingCandidate.GetTopLevelMapping()
-	resp2, err := s.GenerateCode(ctx, req2)
-	if err != nil {
-		return &jsResponse{
-			InferResponse: resp1,
-			Error:         err.Error(),
-		}
-	}
-
-	effectiveRequest := func() *jsRequest {
-		req1 := proto.Clone(req1).(*spb.InferRequest)
-		req2 := proto.Clone(req2).(*spb.GenerateCodeRequest)
-		// Zero out the values that are filled in automatically above.
-		req1.ExampleInputs = nil
-		req2.Mapping = nil
-		return &jsRequest{
-			CSV:                 req.CSV,
-			InferRequest:        prototext.Format(req1),
-			GenerateCodeRequest: prototext.Format(req2),
-		}
-	}
-
-	return &jsResponse{
-		InferResponse:    resp1,
-		CodeGenResponse:  resp2,
-		EffectiveRequest: effectiveRequest(),
-	}
-}
-
-func registerJSEntryPoints(s spb.XToProtoServiceServer) error {
-	js.Global().Call("xtoproto-service-available", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-		if len(args) != 3 {
-			panic(fmt.Errorf("bad number of arguments"))
-		}
-		req := &jsRequest{
-			InferRequest:        args[0].String(),
-			GenerateCodeRequest: args[1].String(),
-			CSV:                 args[2].String(),
-		}
-
-		resp := handleJSRequest(s, req)
-		respJSON, err := json.MarshalIndent(resp, "", "  ")
+	for _, e := range rfe {
+		fi, err := os.Stat(e.Path)
 		if err != nil {
-			panic(fmt.Errorf("JSON encoding error: %v", err))
+			return err
 		}
-		return string(respJSON)
-	}))
+
+		glog.Infof("%q => %d: %q", e.ShortPath, fi.Size(), e.Path)
+	}
+
 	return nil
+}
+
+type filesys struct {
+	webPathToWorkspacePath map[string]string
+}
+
+func makeFilesys() *filesys {
+	m := make(map[string]string)
+	for _, sf := range staticFiles {
+		m[sf.webPath] = sf.runfilesPath
+	}
+	return &filesys{m}
+}
+
+func (fs *filesys) Open(name string) (http.File, error) {
+	name = strings.TrimPrefix(name, "/")
+	glog.Infof("requested %q", name)
+	if name == "" {
+		return &dir{fs: fs, webPath: ""}, nil
+	}
+	p, ok := fs.webPathToWorkspacePath[name]
+	if !ok {
+		return nil, os.ErrNotExist
+	}
+	realPath, err := bazel.Runfile(p)
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(realPath)
+}
+
+func (fs *filesys) outputGithubPagesFiles(dstDir string) error {
+	for webPath, wsPath := range fs.webPathToWorkspacePath {
+		realPath, err := bazel.Runfile(wsPath)
+		if err != nil {
+			return err
+		}
+		contents, err := ioutil.ReadFile(realPath)
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(filepath.Join(dstDir, webPath), contents, 0660); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type dir struct {
+	fs      *filesys
+	webPath string
+}
+
+func (d *dir) Close() error {
+	return nil
+}
+
+func (d *dir) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("Read not supported on directory")
+}
+
+func (d *dir) Seek(offset int64, whence int) (int64, error) {
+	return 0, fmt.Errorf("Seek not supported on directory")
+}
+
+func (d *dir) Readdir(count int) ([]os.FileInfo, error) {
+	var infos []os.FileInfo
+	for webPath, wsPath := range d.fs.webPathToWorkspacePath {
+		if !strings.HasPrefix(webPath, d.webPath) {
+			continue
+		}
+		realPath, err := bazel.Runfile(wsPath)
+		if err != nil {
+			return nil, err
+		}
+		info, err := os.Stat(realPath)
+		if err != nil {
+			return nil, err
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
+}
+
+func (d *dir) Stat() (os.FileInfo, error) {
+	wasmPath, err := bazel.Runfile(d.fs.webPathToWorkspacePath["playground.wasm"])
+	if err != nil {
+		return nil, err
+	}
+	dir := filepath.Dir(wasmPath)
+	return os.Stat(dir)
 }

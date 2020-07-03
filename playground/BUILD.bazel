@@ -1,0 +1,40 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+#load("defs.bzl", "")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["playground.go"],
+    importpath = "github.com/google/xtoproto/playground",
+    visibility = ["//visibility:private"],
+    deps = select({
+        "@io_bazel_rules_go//go/platform:js_wasm": [
+            "//proto/service:go_default_library",
+            "//service:go_default_library",
+            "@org_golang_google_protobuf//encoding/prototext:go_default_library",
+            "@org_golang_google_protobuf//proto:go_default_library",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+go_binary(
+    name = "playground",
+    out = "playground.wasm",
+    embed = [":go_default_library"],
+    goarch = "wasm",
+    goos = "js",
+    pure = "on",
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "playground_files",
+    srcs = [
+        ":playground",
+        "index.html",
+        "prism-theme-dark.css",
+        "prism-theme-light.css",
+        "//third_party:wasm_exec.js",
+    ],
+    visibility = ["//visibility:public"],
+)

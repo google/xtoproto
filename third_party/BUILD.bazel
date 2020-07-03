@@ -1,0 +1,4 @@
+exports_files(
+    ["wasm_exec.js"],
+    visibility = ["//visibility:public"],
+)
