@@ -1,4 +1,3 @@
-
 workspace(
     name = "xtoproto",
 )
@@ -105,4 +104,11 @@ go_repository(
     importpath = "github.com/jhump/protoreflect",
     sum = "h1:qJ7piXPrjP3mDrfHf5ATkxfLix8ANs226vpo0aACOn0=",
     version = "v1.7.0",
+)
+
+go_repository(
+    name = "com_github_otiai10_copy",
+    importpath = "github.com/otiai10/copy",
+    sum = "h1:HvG945u96iNadPoG2/Ja2+AUJeW5YuFQMixq9yirC+k=",
+    version = "v1.2.0",
 )
