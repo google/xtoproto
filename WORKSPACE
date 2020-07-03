@@ -1,3 +1,8 @@
+
+workspace(
+    name = "xtoproto",
+)
+
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
@@ -93,4 +98,11 @@ go_repository(
     importpath = "github.com/golang/glog",
     sum = "h1:VKtxabqXZkF25pY9ekfRL6a582T4P37/31XEstQ5p58=",
     version = "v0.0.0-20160126235308-23def4e6c14b",
+)
+
+go_repository(
+    name = "com_github_jhump_protoreflect",
+    importpath = "github.com/jhump/protoreflect",
+    sum = "h1:qJ7piXPrjP3mDrfHf5ATkxfLix8ANs226vpo0aACOn0=",
+    version = "v1.7.0",
 )
