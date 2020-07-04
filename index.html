@@ -2,11 +2,205 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>xtoproto</title>
+    <style lang="text/css">
+        .io {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-gap: 10px;
+            grid-auto-rows: minmax(50px, auto);
+        }
+
+        .io label {
+            display: block;
+            height: 1.8em;
+        }
+
+        .io textarea {
+            width: 100%;
+            height: 200px;
+            padding: 2px 1px 1px 2px;
+        }
+
+        .io code {
+            white-space: pre;
+        }
+
+        .data>.content {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .data textarea {
+            flex-grow: 1;
+        }
+
+        .top {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .spec {
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .data {
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        .full-width {
+            grid-column-start: 1;
+            grid-column-end: 3;
+        }
+
+        .errors {
+            grid-row: 2;
+        }
+
+        .errors pre {
+            color: tomato;
+        }
+
+        .output-proto {
+            grid-column: 1;
+            grid-row: 3;
+        }
+
+        .output-converter {
+            grid-column: 2;
+            grid-row: 3;
+        }
+    </style>
+    <script lang="javascript">
+        const INFER_REQUEST_ID = 'infer-request';
+        const CODEGEN_REQUEST_ID = 'gen-request';
+        const CSV_ID = 'csv';
+        const ERRORS_ID = 'errors';
+
+        const CODE_PROTO_ID = 'code-proto';
+        const CODE_GO_ID = 'code-go';
+
+
+        const servicePromise = new Promise((resolve) => {
+            window['xtoproto-service-available'] = resolve;
+        });
+        document.addEventListener("DOMContentLoaded", onLoad);
+
+        function getVal(id) {
+            return document.getElementById(id).value;
+        }
+        function setValIfEmpty(id, value) {
+            const elem = document.getElementById(id);
+            if (!elem.value) {
+                elem.value = value;
+            }
+        }
+
+        function setTextContent(id, value) {
+            return document.getElementById(id).textContent = value;
+        }
+
+        function setError(message) {
+            return setTextContent(ERRORS_ID, message ? message : '');
+        }
+
+        function setCode(id, obj) {
+            const contents = atob(obj['new_contents']);
+            const name = obj['workspace_relative_path'];
+            setTextContent(id, contents ? contents : '// no code available');
+            setTextContent(id + '-filename', name ? name : '(unnamed file)');
+            const highlightCode = window['Prism'] ? window['Prism']['highlightAllUnder'] : () => { };
+            Promise.resolve(null)
+                .then(() => highlightCode(document.getElementById(id).parentElement))
+                .then(() => { }, (err) => console.error('error during code highlight: %o', err));
+        }
+
+        function update() {
+            servicePromise.then(s => {
+                const resp = JSON.parse(s(getVal(INFER_REQUEST_ID), getVal(CODEGEN_REQUEST_ID), getVal(CSV_ID)));
+                console.log('got response: %o', resp);
+                setError(resp['error']);
+                setCode(CODE_PROTO_ID, resp['codegen_response']['proto_file']);
+                setCode(CODE_GO_ID, resp['codegen_response']['converter_go_file']);
+                setValIfEmpty(INFER_REQUEST_ID, resp['request']['infer_request']);
+                setValIfEmpty(CODEGEN_REQUEST_ID, resp['request']['codegen_request']);
+
+            }).then(() => null, (err) => {
+                console.error("problem calling xtoproto: %o", err);
+            });
+        }
+
+        function onInput(id) {
+            update();
+        }
+
+        function onLoad() {
+            [INFER_REQUEST_ID, CODEGEN_REQUEST_ID, CSV_ID].forEach((id) => {
+                document.getElementById(id).addEventListener('input', () => { onInput(id); });
+            });
+            update();
+        }
+    </script>
+    <script src="wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("playground.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+        });
+    </script>
+    <!-- <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.20.0/themes/prism-okaidia.css" rel="stylesheet" /> -->
+    <link href="prism-theme-light.css" rel="stylesheet" />
+    <!-- <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.20.0/themes/prism-okaidia.css" rel="stylesheet" /> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.20.0/components/prism-core.min.js"></script>
+    <script
+        src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.20.0/plugins/autoloader/prism-autoloader.min.js"></script>
 </head>
 
 <body>
-    testing
+    <div class="top">
+        <h1>xtoproto playground</h1>
+        <p>This app uses WebAssembly to run xtoproto in the browser. Try
+            updating the CSV (right) or request protos (left) to view the generated
+            code.</p>
+    </div>
+    <div class="io">
+        <section class="spec">
+            <div><label for="infer-request">xtoproto.InferRequest (prototxt):</label></div>
+            <textarea id="infer-request" placeholder="blah"></textarea>
+            <div><label for="gen-request">xtoproto.GenerateCodeRequest (prototxt):</label></div>
+            <textarea id="gen-request" placeholder="blah"></textarea>
+        </section>
+        <section class="data">
+            <div class="content">
+                <label for="csv">Input CSV</label>
+                <textarea id="csv" placeholder="blah">project_name,lines_of_code,url,last_modified
+"xtoproto",3000,"https://github.com/google/xtoproto",2020-10-04
+"bazel",3000,"https://bazel.build",2020-2-26
+</textarea>
+            </div>
+        </section>
+        <section class="full-width errors">
+            <div>Errors:</div>
+            <pre id="errors"></pre>
+        </section>
+        <section class="output-proto">
+            <div>
+                Output .proto file:
+                <code id="code-proto-filename"></code>
+            </div>
+            <pre><code id="code-proto" class="lang-protobuf"></code></pre>
+        </section>
+        <section class="output-converter">
+            <div>
+                Output converter code:
+                <code id="code-go-filename"></code>
+            </div>
+
+            <pre><code id="code-go" class="lang-go"></code></pre>
+        </section>
+    </div>
 </body>
 
 </html>

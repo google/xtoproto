@@ -31,5 +31,3 @@ user.bazelrc
 
 # Don't include generated .pb.go files in the repo.
 *.pb.go
-*.wasm
-*wasm_exec.js
