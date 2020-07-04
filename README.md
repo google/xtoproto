@@ -50,6 +50,16 @@ command from the root of the checked out xtoproto repository:
  bazel run //releasing/generate_pb_go_files -- -output_dir $PWD/proto --alsologtostderr
 ```
 
+### Releasing
+
+There is a script for generating the release. Run it from the a cloned
+repository with the following command.
+
+```shell
+git remote add google  git@github.com:google/xtoproto.git
+bazel run //releasing/make_release -- --workspace $PWD --branch_suffix v006c --tag v0.0.6
+```
+
 ## Disclaimer
 
 This is not an official Google product.
