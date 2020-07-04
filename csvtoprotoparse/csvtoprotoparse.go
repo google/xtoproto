@@ -20,6 +20,7 @@
 package csvtoprotoparse
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -72,5 +73,19 @@ func ParseTimestamp(rawValue, layout string) (*ts.Timestamp, error) {
 	return tt, nil
 }
 
+// TimeToTimestamp returns a Timestamp proto from a time value that may be nil.
+func TimeToTimestamp(t time.Time) (*ts.Timestamp, error) {
+	return ptypes.TimestampProto(t)
+}
+
 // ReaderOption is used to specify a custom argument to csvtoproto readers at construction time.
 type ReaderOption interface{}
+
+// MustLoadLocation returns a time.Location or panics.
+func MustLoadLocation(name string) *time.Location {
+	tz, err := time.LoadLocation(name)
+	if err != nil {
+		panic(fmt.Errorf("error parsing timezone for lastModifiedTime: %w", err))
+	}
+	return tz
+}

@@ -1,0 +1,33 @@
+// This file was generated using xtoproto.
+
+syntax = "proto3";
+
+package mycompany.mypackage;
+
+import "google/protobuf/timestamp.proto";
+
+message Example2 {
+  // Field type inferred from 2 unique values in 2 rows; 2 most common: "bazel"
+  // (1); "xtoproto" (1)
+  //
+  // csv field: "project_name"
+  string project_name = 1;
+
+  // Field type inferred from 1 unique values in 2 rows; 1 most common: "3000"
+  // (2)
+  //
+  // csv field: "lines_of_code"
+  int64 lines_of_code = 2;
+
+  // Field type inferred from 2 unique values in 2 rows; 2 most common:
+  // "https://bazel.build" (1); "https://github.com/google/xtoproto" (1)
+  //
+  // csv field: "url"
+  string url = 3;
+
+  // Field type inferred from 2 unique values in 2 rows; 2 most common:
+  // "2020-10-04" (1); "2020-2-26" (1)
+  //
+  // csv field: "last_modified"
+  google.protobuf.Timestamp last_modified = 4;
+}

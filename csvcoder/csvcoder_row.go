@@ -170,6 +170,11 @@ func (h *Header) ColumnNames() []string {
 	return h.values
 }
 
+// RegisterOption objects may be passed to RegisterRowStruct to configure how a
+// type should be parsed as a CSV row.
+type RegisterOption struct {
+}
+
 // RegisterRowStruct registers a struct type T that can be encoded as a CSV row.
 //
 // Each public field of the struct definition will be examined and treated as
@@ -186,16 +191,16 @@ func (h *Header) ColumnNames() []string {
 // with the name from step 2 into the field of a row being parsed. If there is
 // no registered decoder for *FT, RegisterRowStruct will panic and
 // SafeRegisterRowStruct returns an error.
-func RegisterRowStruct(t reflect.Type) {
-	if _, err := getOrRegisterType(t); err != nil {
+func RegisterRowStruct(t reflect.Type, opt ...RegisterOption) {
+	if err := SafeRegisterRowStruct(t, opt...); err != nil {
 		panic(fmt.Errorf("RegisterStruct failed: %w", err))
 	}
 }
 
 // SafeRegisterRowStruct calls RegisterRowStruct but returns an error instead of
 // panicking if there are any issues.
-func SafeRegisterRowStruct(t reflect.Type) error {
-	_, err := getOrRegisterType(t)
+func SafeRegisterRowStruct(t reflect.Type, opt ...RegisterOption) error {
+	_, err := getOrRegisterType(t, opt...)
 	return err
 }
 
@@ -238,11 +243,11 @@ func getRegisteredTypeOrErr(t reflect.Type) (*registeredType, error) {
 	return rt, nil
 }
 
-func getOrRegisterType(t reflect.Type) (*registeredType, error) {
+func getOrRegisterType(t reflect.Type, opt ...RegisterOption) (*registeredType, error) {
 	if rt := getRegisteredType(t); rt != nil {
 		return rt, nil
 	}
-	rt, err := inferRegisteredType(t)
+	rt, err := inferRegisteredType(t, opt...)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +257,7 @@ func getOrRegisterType(t reflect.Type) (*registeredType, error) {
 	return rt, nil
 }
 
-func inferRegisteredType(t reflect.Type) (*registeredType, error) {
+func inferRegisteredType(t reflect.Type, opt ...RegisterOption) (*registeredType, error) {
 	if !(t.Kind() == reflect.Ptr && t.Elem().Kind() == reflect.Struct) {
 		return nil, fmt.Errorf("type %v is not a pointer to a struct, so could not infer a CSV row parser", t)
 	}

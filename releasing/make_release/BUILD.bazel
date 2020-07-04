@@ -8,10 +8,7 @@ go_library(
     ],
     importpath = "github.com/google/xtoproto/releasing/make_release",
     visibility = ["//visibility:private"],
-    deps = [
-        "@com_github_golang_glog//:go_default_library",
-        "@com_github_otiai10_copy//:go_default_library",
-    ],
+    deps = ["@com_github_golang_glog//:go_default_library"],
 )
 
 go_binary(
