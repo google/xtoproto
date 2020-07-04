@@ -112,3 +112,10 @@ go_repository(
     sum = "h1:HvG945u96iNadPoG2/Ja2+AUJeW5YuFQMixq9yirC+k=",
     version = "v1.2.0",
 )
+
+go_repository(
+    name = "com_github_bmatcuk_doublestar",
+    importpath = "github.com/bmatcuk/doublestar",
+    sum = "h1:rT8rxDPsavp9G+4ZULzqhhUSaI/OPsTZNG88Z3i0xvY=",
+    version = "v1.3.1",
+)
