@@ -25,7 +25,7 @@ bazel build //...
 ## Playground
 
 Try out xtoproto using the [interactive, web-based playground hosted on
-Github](https://google.github.io/xtoproto/playground/). The playground uses a
+Github](https://google.github.io/xtoproto). The playground uses a
 WebAssembly version of xtoproto and does not transmit the input example data to
 a remote server. Alternatively, you may start the playground on your workstation
 with this command, then navigate to http://localhost:8888/
