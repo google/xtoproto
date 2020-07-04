@@ -56,10 +56,6 @@ var (
 func newRecord() *{{.struct_name}} { return &{{.struct_name}}{} }
 
 
-var fieldParsers = []func(row []string, output *{{.message_type}}) error {
-	{{.parser_symbols}}
-}
-
 var parseRowReaderHooks []func(reader *Reader, parsedMsg *{{.message_type}}, parseErrors []error) error
 
 // AddReaderParseRowHook should be used by custom parsing libraries to add post-read parsing
@@ -145,24 +141,6 @@ func NewMessageReader(r io.Reader, options... csvtoprotoparse.ReaderOption) (pro
 }
 `))
 
-var parseFnTemplate = template.Must(template.New("classdef").Parse(
-	`const {{.column_index_const}} = {{.column_index}}
-
-// {{.func_name}} parses the {{.column_name}} field of the CSV row into output.
-func {{.func_name}}(row []string, output *{{.message_type}}) error {
-  if colCount := len(row); {{.column_index_const}} >= colCount {
-    return fmt.Errorf("row must have at least %d columns, got %d", {{.column_index_const}} + 1, colCount)
-  }
-	rawValue :=  row[{{.column_index_const}}]
-	parsedValue, err := {{.parse_value_funcall}}
-	if err != nil {
-		return err
-	}
-	output.{{.go_field_name}} = parsedValue
-	return nil
-}
-`))
-
 func (cg *codeGenerator) recordStructTypeName() string {
 	return strcase.LowerCamelCase(cg.mapping.MessageName) + "Record"
 }
@@ -174,10 +152,6 @@ func (cg *codeGenerator) goCode() (string, error) {
 		return "", err
 	}
 
-	fnsCode, err := cg.parseFns()
-	if err != nil {
-		return "", err
-	}
 	structCode, err := cg.makeStructCode()
 	if err != nil {
 		return "", err
@@ -186,9 +160,6 @@ func (cg *codeGenerator) goCode() (string, error) {
 	params["record_struct_definition"] = structCode.structDef
 	params["to_proto_impl"] = "return nil, fmt.Errorf(`problem`)"
 	params["struct_name"] = cg.recordStructTypeName()
-	params["parser_definitions"] = fnsCode.definitions
-	params["parser_symbols"] = strings.Join(fnsCode.fnNames, ", ") + ","
-	params["parser_symbols"] = ""
 	if err := goFileTemplate.Execute(strBuilder, params); err != nil {
 		return "", err
 	}
@@ -293,68 +264,6 @@ func init() {
 }
 
 `))
-
-type parseFnsCode struct {
-	fnNames     []string
-	definitions string
-}
-
-func (cg *codeGenerator) parseFns() (*parseFnsCode, error) {
-	fnsCode := &parseFnsCode{}
-	for _, c2f := range cg.mapping.ColumnToFieldMappings {
-		if c2f.Ignored {
-			continue
-		}
-		singleFnCode, err := cg.parseFn(c2f)
-		if err != nil {
-			return nil, err
-		}
-		fnsCode.fnNames = append(fnsCode.fnNames, singleFnCode.fnName)
-		fnsCode.definitions += singleFnCode.definition + "\n\n"
-	}
-	return fnsCode, nil
-}
-
-type parseFnCode struct {
-	fnName, definition string
-}
-
-func (cg *codeGenerator) parseFn(c2f *pb.ColumnToFieldMapping) (*parseFnCode, error) {
-	params, err := cg.sharedTemplateParams()
-	if err != nil {
-		return nil, err
-	}
-	fnName := fmt.Sprintf("parse%s", strcase.UpperCamelCase(c2f.ProtoName))
-	params["func_name"] = fnName
-	params["go_field_name"] = strcase.UpperCamelCase(c2f.ProtoName)
-	params["column_index"] = fmt.Sprintf("%d", c2f.ColumnIndex)
-	params["column_index_const"] = fmt.Sprintf("colIndex%s", strcase.UpperCamelCase(c2f.ProtoName))
-	params["column_name"] = c2f.ColName
-	parseValueFuncall := ""
-	switch c2f.ProtoType {
-	case "int32":
-		parseValueFuncall = "csvtoprotoparse.ParseInt32(rawValue)"
-	case "int64":
-		parseValueFuncall = "csvtoprotoparse.ParseInt64(rawValue)"
-	case "float":
-		parseValueFuncall = "csvtoprotoparse.ParseFloat(rawValue)"
-	case "double":
-		parseValueFuncall = "csvtoprotoparse.ParseDouble(rawValue)"
-	case "string":
-		parseValueFuncall = "csvtoprotoparse.ParseString(rawValue)"
-	case "google.protobuf.Timestamp":
-		parseValueFuncall = fmt.Sprintf("csvtoprotoparse.ParseTimestamp(rawValue, %q)", c2f.GetTimeFormat().GoLayout)
-	default:
-		return nil, fmt.Errorf("unexpected type: %q", c2f.ProtoType)
-	}
-	params["parse_value_funcall"] = parseValueFuncall
-
-	codeBuilder := &strings.Builder{}
-	if err := parseFnTemplate.Execute(codeBuilder, params); err != nil {
-		return nil, err
-	}
-	return &parseFnCode{fnName, codeBuilder.String()}, nil
-}
 
 type fieldTypeCode struct {
 	// Go code to be inserted at the top level of the file.
