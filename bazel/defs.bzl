@@ -81,6 +81,7 @@ def go_xtoproto_converter_library(name, request, importpath, deps=None, visibili
         "@xtoproto//csvtoprotoparse:go_default_library",
         "@xtoproto//protocp:go_default_library",
         "@xtoproto//csvcoder:go_default_library",
+        "@xtoproto//textcoder:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
     ]
     go_library(

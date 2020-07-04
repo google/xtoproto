@@ -160,7 +160,7 @@ func handleJSRequest(s spb.XToProtoServiceServer, req *jsRequest) *jsResponse {
 		req2 := proto.Clone(req2).(*spb.GenerateCodeRequest)
 		// Zero out the values that are filled in automatically above.
 		req1.ExampleInputs = nil
-		req2.Mapping = nil
+		//req2.Mapping = nil
 		return &jsRequest{
 			CSV:                 req.CSV,
 			InferRequest:        prototext.Format(req1),
