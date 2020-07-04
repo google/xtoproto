@@ -5,18 +5,22 @@ definition (a `.proto` file) from XML and CSV files, and (2) generating
 runtime code from translating XML and CSV files to proto using the mappings
 from (1).
 
-## Not yet operable
+## Quickstart
 
-This repository was created on June 29, 2020. We are incrementally migrating the
-code onto Github, and the project will not be functional until that migration is
-finished. This README will be updated with instructions about how to use the
-project once the migration is complete. In the mean time, feel free to browse
-the code.
+The best way to get started is to try out xtoproto using the [interactive,
+web-based playground hosted on Github](https://google.github.io/xtoproto).
+
+![screenshot of xtoproto playground](https://raw.githubusercontent.com/google/xtoproto/gh-pages/images/playground-example.png
+"xtoproto playground")
+
+
+More details about how to use xtoproto will be added soon.
 
 ## Building
 
-The project is buildable with Bazel. We also plan to make it buildable using `go
-build` after the initial migration effort.
+The project is buildable with Bazel and `go build`. Bazel is recommended because
+the files needed for `go build` are only present in the release branches of the
+repository (`v0.0.6`, `v0.0.5`, etc.).
 
 ```
 bazel build //...
@@ -33,9 +37,6 @@ with this command, then navigate to http://localhost:8888/
 ```shell
 bazel run //cmd/xtoproto_web -- --addr ":8888"
 ```
-
-
-
 
 ## Development
 
@@ -63,3 +64,10 @@ bazel run //releasing/make_release -- --workspace $PWD --branch_suffix v006c --t
 ## Disclaimer
 
 This is not an official Google product.
+
+
+This repository was created on June 29, 2020. We are incrementally migrating the
+code onto Github, and the project will not be functional until that migration is
+finished. This README will be updated with instructions about how to use the
+project once the migration is complete. In the mean time, feel free to browse
+the code.
