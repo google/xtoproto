@@ -1,2 +1,0 @@
-# gazelle:exclude **.go
-# gazelle:exclude **.proto
