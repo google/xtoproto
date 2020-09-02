@@ -343,7 +343,7 @@ func (c *Context) Registry() *Registry {
 	return v.(*Registry)
 }
 
-// Value returns a value associated with the the given key.
+// Value returns a value associated with the given key.
 //
 // This may be used to pass contextual information to the text coder that may be
 // relevant for printing out the
