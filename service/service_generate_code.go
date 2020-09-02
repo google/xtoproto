@@ -87,7 +87,7 @@ func (s *service) GenerateCode(ctx context.Context, req *spb.GenerateCodeRequest
 
 // protoPath always returns a non-empty string if error is nil.
 //
-// The first return value is the path the the proto file including the path
+// The first return value is the path to the proto file including the path
 // to the workspace directory. The second return value is the path of the
 // proto file relative to the workspace root.
 func (s *service) protoPath(req *spb.GenerateCodeRequest) (string, string, error) {
