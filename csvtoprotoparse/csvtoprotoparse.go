@@ -61,16 +61,16 @@ func ParseString(rawValue string) (string, error) {
 }
 
 // ParseTimestamp returns a proto version of a timestamp using a given layout.
-func ParseTimestamp(rawValue, layout string) (*ts.Timestamp, error) {
-	t, err := time.Parse(rawValue, layout)
+func ParseTimestamp(rawValue, layout string, timezone string) (*ts.Timestamp, error) {
+	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		return nil, err
 	}
-	tt, err := ptypes.TimestampProto(t)
+	t, err := time.ParseInLocation(layout, rawValue, loc)
 	if err != nil {
 		return nil, err
 	}
-	return tt, nil
+	return ptypes.TimestampProto(t)
 }
 
 // TimeToTimestamp returns a Timestamp proto from a time value that may be nil.
