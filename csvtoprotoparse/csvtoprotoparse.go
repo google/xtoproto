@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	dpb "google.golang.org/protobuf/types/known/durationpb"
 	ts "google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -70,12 +71,28 @@ func ParseTimestamp(rawValue, layout string, timezone string) (*ts.Timestamp, er
 	if err != nil {
 		return nil, err
 	}
-	return ptypes.TimestampProto(t)
+	return TimeToTimestamp(t)
+}
+
+// ParseDuration returns a proto version of a duration, using an option unit suffix.
+func ParseDuration(rawValue, unit string) (*dpb.Duration, error) {
+	d, err := time.ParseDuration(fmt.Sprintf("%s%s", rawValue, unit))
+	if err != nil {
+		return nil, err
+	}
+
+	return DurationToDurationProto(d)
 }
 
 // TimeToTimestamp returns a Timestamp proto from a time value that may be nil.
 func TimeToTimestamp(t time.Time) (*ts.Timestamp, error) {
 	return ptypes.TimestampProto(t)
+}
+
+// DurationToDurationProto returns a Duration proto from a time.Duration value
+// that may be nil.
+func DurationToDurationProto(d time.Duration) (*dpb.Duration, error) {
+	return ptypes.DurationProto(d), nil
 }
 
 // ReaderOption is used to specify a custom argument to csvtoproto readers at construction time.
