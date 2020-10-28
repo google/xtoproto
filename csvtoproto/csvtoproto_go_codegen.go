@@ -297,6 +297,16 @@ func getFieldTypeCode(c2f *pb.ColumnToFieldMapping) (*fieldTypeCode, error) {
 			return nil, err
 		}
 		return &fieldTypeCode{code, typeName}, nil
+	case "google.protobuf.Duration":
+		typeName := strcase.LowerCamelCase(c2f.GetProtoName() + "Duration")
+		code, err := templateExecString(durationTypeTemplate, map[string]string{
+			"T":    typeName,
+			"unit": c2f.GetTimeFormat().GetGoLayout(),
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &fieldTypeCode{code, typeName}, nil
 	default:
 		return nil, fmt.Errorf("unexpected type: %q", protoType)
 	}
@@ -331,6 +341,33 @@ func init() {
 }
 `))
 
+var durationTypeTemplate = template.Must(template.New("durationType").Parse(`
+type {{.T}} time.Duration
+
+// duration returns the underlying time.Duration of a {{.T}} object.
+func (d {{.T}}) duration() time.Duration {
+	return time.Duration(d)
+}
+
+func init() {
+	textcoder.Register(
+		reflect.TypeOf({{.T}}{}),
+		func(d {{.T}}) (string, error) {
+			return d.Duration().String(), nil
+		},
+		func(s string, dst *{{.T}}) error {
+			d, err := csvtoprotoparse.ParseDuration(s, unit)
+			if err != nil {
+				return fmt.Errorf("error parsing {{.T}}: %w", err)
+			}
+			*dst = {{.T}}(d)
+			return nil
+		},
+
+	)
+}
+`))
+
 type transformExpr struct {
 	// Go statements to execute before the valueExpr is valid.
 	parseStatements string
@@ -349,6 +386,16 @@ func getGoToProtoFieldExpression(inExpr, outVar, protoType string) (*transformEx
 		return &transformExpr{
 			fmt.Sprintf(`
 %s, err := csvtoprotoparse.TimeToTimestamp(%s.time())
+if err != nil {
+	return nil, err
+}
+`, outVar, inExpr),
+			outVar,
+		}, nil
+	case "google.protobuf.Duration":
+		return &transformExpr{
+			fmt.Sprintf(`
+%s, err := csvtoprotoparse.DurationToDurationProto(%s.duration())
 if err != nil {
 	return nil, err
 }

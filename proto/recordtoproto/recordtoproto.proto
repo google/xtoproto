@@ -57,6 +57,7 @@ message ColumnToFieldMapping {
 
   oneof parsing_info {
     TimeFormat time_format = 8;
+    DurationFormat duration_format = 10;
   }
 }
 
@@ -89,6 +90,13 @@ message TimeFormat {
   // The name used to load the time zone for parsing times. See
   // https://godoc.org/time#LoadLocation.
   string time_zone_name = 2;
+}
+
+// Details used to parse duration fields.
+message DurationFormat {
+  // Optional unit to be appended to the field when parsing with Go's time
+  // library.
+  string go_unit_suffix = 1;
 }
 
 message GoOptions {
