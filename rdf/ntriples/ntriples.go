@@ -32,16 +32,19 @@ func (iri IRI) String() string {
 }
 
 const (
-	// Used for  https://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/#dfn-literal.
+	// LangString is the type of a literal string that has a language annotation.
+	// https://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/#dfn-literal.
 	LangString IRI = " http://www.w3.org/1999/02/22-rdf-syntax-ns#langString"
 
+	// XMLSchemaString is the type of a literal string with no language
+	// annotation.
+	//
 	// Please note that concrete syntaxes may support simple literals consisting
 	// of only a lexical form without any datatype IRI or language tag. Simple
-	// literals are syntactic sugar for abstract syntax literals with the
-	// datatype IRI http://www.w3.org/2001/XMLSchema#string. Similarly, most
-	// concrete syntaxes represent language-tagged strings without the datatype
-	// IRI because it always equals
-	// http://www.w3.org/1999/02/22-rdf-syntax-ns#langString.
+	// literals are syntactic sugar for abstract syntax literals with the datatype
+	// IRI http://www.w3.org/2001/XMLSchema#string. Similarly, most concrete
+	// syntaxes represent language-tagged strings without the datatype IRI because
+	// it always equals http://www.w3.org/1999/02/22-rdf-syntax-ns#langString.
 	XMLSchemaString IRI = "http://www.w3.org/2001/XMLSchema#string"
 )
 
@@ -84,7 +87,7 @@ func (t *Triple) String() string {
 	return fmt.Sprintf("%s %s %s .", t.subject, t.predicate, t.object)
 }
 
-// A subject is either an IRI or a blank node.
+// Subject is either an IRI or a blank node.
 //
 // See the definition at https://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/#section-triples.
 type Subject struct {
@@ -432,7 +435,7 @@ func (c *Comment) Contents() string {
 	return c.contents
 }
 
-// Contents returns the comment literal with the leading '#' character.
+// Line returns the comment literal with the leading '#' character.
 func (c *Comment) Line() string {
 	return fmt.Sprintf("#%s", c.contents)
 }
