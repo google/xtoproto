@@ -97,7 +97,7 @@ func NewSubjectIRI(iri IRI) *Subject {
 	return &Subject{iri: iri}
 }
 
-// NNewSubjectBlankNodeID returns a new *Subject with the given blank node identifier.
+// NewSubjectBlankNodeID returns a new *Subject with the given blank node identifier.
 func NewSubjectBlankNodeID(blankNodeID BlankNodeID) *Subject {
 	return &Subject{blankNodeID: blankNodeID}
 }
@@ -108,6 +108,12 @@ func (s *Subject) IsIRI() bool { return s.iri != "" }
 // IsBlankNode reports if the term is a literal.
 func (s *Subject) IsBlankNode() bool { return s.blankNodeID != "" }
 
+// IRI returns the IRI for the term. The result is undefined if IsIRI() is false.
+func (s *Subject) IRI() IRI { return s.iri }
+
+// BlankNodeID returns the blank node id for the term. The result is undefined if IsBlankNode() is false
+func (s *Subject) BlankNodeID() BlankNodeID { return s.blankNodeID }
+
 // String returns the N-Triple formatted term.
 func (s *Subject) String() string {
 	if s.IsBlankNode() {
@@ -116,7 +122,7 @@ func (s *Subject) String() string {
 	return s.iri.String()
 }
 
-// An object is an IRI, a blank node, or a literal.
+// Object is an IRI, a blank node, or a literal.
 //
 // See the definition at https://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/#section-triples.
 type Object struct {
@@ -148,6 +154,12 @@ func (o *Object) IsLiteral() bool { return !o.IsIRI() && !o.IsBlankNode() }
 
 // IsBlankNode reports if the term is a literal.
 func (o *Object) IsBlankNode() bool { return o.blankNodeID != "" }
+
+// IRI returns the IRI for the term. The result is undefined if IsIRI() is false.
+func (o *Object) IRI() IRI { return o.iri }
+
+// BlankNodeID returns the blank node id for the term. The result is undefined if IsBlankNode() is false
+func (o *Object) BlankNodeID() BlankNodeID { return o.blankNodeID }
 
 // String returns the N-Triple formatted term.
 func (o *Object) String() string {
@@ -273,25 +285,23 @@ func ParseLine(line string) (*Triple, *Comment, error) {
 	if line[0] == '#' {
 		return nil, &Comment{line[1:]}, nil
 	}
-	terms := termSep.Split(strings.TrimRight(line, " \t"), 5)
-	if len(terms) != 4 {
-		return nil, nil, fmt.Errorf("splitting line into parts by whitespace got %d parts, want 4: %v", len(terms), terms)
-	}
-	if terms[3] != "." {
-		return nil, nil, fmt.Errorf("last term must be `.`, got %q", terms[3])
-	}
-	sub, err := parseSubject(terms[0])
+	sub, rest, err := parseSubject(line)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse subject of line: %w", err)
 	}
-	pred, err := parseIRI(terms[1])
+	pred, rest, err := parseIRI(strings.TrimLeft(rest, " \t"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse subject of line: %w", err)
 	}
-	obj, err := parseObject(terms[2])
+	obj, rest, err := parseObject(strings.TrimLeft(rest, " \t"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse object of line: %w", err)
 	}
+	rest = strings.Trim(rest, " \t")
+	if rest != "." {
+		return nil, nil, fmt.Errorf("last term must be `.`, got %q", rest)
+	}
+
 	return NewTriple(sub, pred, obj), nil, nil
 }
 
@@ -307,53 +317,53 @@ func ParseLines(lines []string) ([]*Triple, error) {
 	return triples, nil
 }
 
-func parseSubject(input string) (*Subject, error) {
+func parseSubject(input string) (*Subject, string, error) {
 	if len(input) == 0 {
-		return nil, fmt.Errorf("invalid empty subject")
+		return nil, "", fmt.Errorf("invalid empty subject")
 	}
 	switch input[0] {
 	case '_':
-		got, err := parseBlankNode(input)
+		got, rest, err := parseBlankNode(input)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return NewSubjectBlankNodeID(got), nil
+		return NewSubjectBlankNodeID(got), rest, nil
 	case '<':
-		got, err := parseIRI(input)
+		got, rest, err := parseIRI(input)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return NewSubjectIRI(got), nil
+		return NewSubjectIRI(got), rest, nil
 	default:
-		return nil, fmt.Errorf("invalid subject: %q", input)
+		return nil, "", fmt.Errorf("invalid subject: %q", input)
 	}
 }
 
-func parseObject(input string) (*Object, error) {
+func parseObject(input string) (*Object, string, error) {
 	if len(input) == 0 {
-		return nil, fmt.Errorf("invalid empty subject")
+		return nil, "", fmt.Errorf("invalid empty subject")
 	}
 	switch input[0] {
 	case '_':
-		got, err := parseBlankNode(input)
+		got, rest, err := parseBlankNode(input)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return NewObjectBlankNodeID(got), nil
+		return NewObjectBlankNodeID(got), rest, nil
 	case '<':
-		got, err := parseIRI(input)
+		got, rest, err := parseIRI(input)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return NewObjectIRI(got), nil
+		return NewObjectIRI(got), rest, nil
 	case '"':
-		got, err := ParseLiteral(input)
+		got, rest, err := ParseLiteral(input)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
-		return NewObjectLiteral(got), nil
+		return NewObjectLiteral(got), rest, nil
 	default:
-		return nil, fmt.Errorf("invalid subject: %q", input)
+		return nil, "", fmt.Errorf("invalid subject: %q", input)
 	}
 }
 
@@ -371,42 +381,45 @@ const (
 )
 
 var (
-	irirefRegexp = regexp.MustCompile(iriref)
+	irirefRegexp = regexp.MustCompile("^" + iriref)
 
 	// 	BLANK_NODE_LABEL	::=	'_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
-	blankNodeLabel = regexp.MustCompile(`^_\:[` + pnCharsU + `0-9][` + pnChars + `\.]*[` + pnChars + `]?$`)
-	literalRegexp  = regexp.MustCompile(`^` + stringLiteralQuote + `(?:(?:\^\^` + iriref + `)|` + langTag + `)?$`)
+	blankNodeLabel = regexp.MustCompile(`^_\:[` + pnCharsU + `0-9][` + pnChars + `\.]*[` + pnChars + `]?`)
+	literalRegexp  = regexp.MustCompile(`^` + stringLiteralQuote + `(?:(?:\^\^` + iriref + `)|` + langTag + `)?`)
 )
 
-func parseIRI(input string) (IRI, error) {
-	if !irirefRegexp.MatchString(input) {
-		return "", fmt.Errorf("invalid IRIREF: %q", input)
+func parseIRI(input string) (IRI, string, error) {
+	match := irirefRegexp.FindStringIndex(input)
+	if len(match) == 0 {
+		return "", "", fmt.Errorf("invalid IRIREF: %q", input)
 	}
 	// TODO(reddaly): Canonicalize IRI (e.g., make unicode hex all one case).
-	return IRI(input[1 : len(input)-1]), nil
+	return IRI(input[1 : match[1]-1]), input[match[1]:], nil
 }
 
-func parseBlankNode(input string) (BlankNodeID, error) {
-	if !blankNodeLabel.MatchString(input) {
-		return "", fmt.Errorf("invalid blank node: %q does not match %s", input, blankNodeLabel)
+func parseBlankNode(input string) (BlankNodeID, string, error) {
+	match := blankNodeLabel.FindStringIndex(input)
+	if len(match) == 0 {
+		return "", "", fmt.Errorf("invalid blank node: %q does not match %s", input, blankNodeLabel)
 	}
 	// TODO(reddaly): Canonicalize blank node by parsing the string.
-	return BlankNodeID(input[2:]), nil
+	return BlankNodeID(input[2:match[1]]), input[match[1]:], nil
 }
 
 // ParseLiteral returns an RDF literal parsed from a string.
-func ParseLiteral(input string) (Literal, error) {
+func ParseLiteral(input string) (Literal, string, error) {
 	parts := literalRegexp.FindStringSubmatch(input)
 	if parts == nil {
-		return nil, fmt.Errorf("invalid literal: %s", input)
+		return nil, "", fmt.Errorf("invalid literal: %s", input)
 	}
+	rest := input[len(parts[0]):]
 	lexicalForm, iri, lang := parts[1], parts[2], parts[3]
 	if iri == "" && lang == "" {
-		return NewLiteral(lexicalForm, XMLSchemaString, ""), nil
+		return NewLiteral(lexicalForm, XMLSchemaString, ""), rest, nil
 	} else if lang != "" {
-		return NewLiteral(lexicalForm, LangString, lang), nil
+		return NewLiteral(lexicalForm, LangString, lang), rest, nil
 	}
-	return NewLiteral(lexicalForm, IRI(iri), lang), nil
+	return NewLiteral(lexicalForm, IRI(iri), lang), rest, nil
 }
 
 // Comment is a line comment in an N-Tuples file.

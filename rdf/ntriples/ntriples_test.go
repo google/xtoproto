@@ -108,22 +108,23 @@ var literalCmpOpt = cmp.Transformer("literal", func(lit Literal) map[string]stri
 	}
 })
 
-func TestParseLines(t *testing.T) {
+func TestParseLiteral(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    Literal
-		wantErr bool
+		input    string
+		want     Literal
+		wantRest string
+		wantErr  bool
 	}{
-		{`"x"@en`, NewLiteral("x", LangString, "en"), false},
-		{`"x"@en-US`, NewLiteral("x", LangString, "en-US"), false},
-		{`"x"^^<https://google>`, NewLiteral("x", "https://google", ""), false},
-		{`"x"`, NewLiteral("x", XMLSchemaString, ""), false},
-		{`"x@en`, nil, true},
-		{`"x\u0124"`, NewLiteral(`x\u0124`, XMLSchemaString, ""), false},
+		{`"x"@en`, NewLiteral("x", LangString, "en"), "", false},
+		{`"x"@en-US`, NewLiteral("x", LangString, "en-US"), "", false},
+		{`"x"^^<https://google>`, NewLiteral("x", "https://google", ""), "", false},
+		{`"x"`, NewLiteral("x", XMLSchemaString, ""), "", false},
+		{`"x@en`, nil, "", true},
+		{`"x\u0124" <blah>`, NewLiteral(`x\u0124`, XMLSchemaString, ""), " <blah>", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got, err := ParseLiteral(tt.input)
+			got, rest, err := ParseLiteral(tt.input)
 			if gotErr := err != nil; gotErr != tt.wantErr {
 				t.Fatalf("got err = %v, wantErr = %v", err, tt.want)
 			}
@@ -132,35 +133,40 @@ func TestParseLines(t *testing.T) {
 			}
 			if diff := cmp.Diff(tt.want, got, literalCmpOpt); diff != "" {
 				t.Errorf("ParseLiteral(%q) created unexpected diff (-want, +got): %s", tt.input, diff)
+			}
+			if rest != tt.wantRest {
+				t.Errorf("ParseLiteral(%q) returned _, %q, want _, %q", tt.input, rest, tt.wantRest)
 			}
 		})
 	}
 }
 
-func TestParseLiteral(t *testing.T) {
+func TestParseLineRoundTrip(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    Literal
-		wantErr bool
+		input, want string
+		wantErr     bool
 	}{
-		{`"x"@en`, NewLiteral("x", LangString, "en"), false},
-		{`"x"@en-US`, NewLiteral("x", LangString, "en-US"), false},
-		{`"x"^^<https://google>`, NewLiteral("x", "https://google", ""), false},
-		{`"x"`, NewLiteral("x", XMLSchemaString, ""), false},
-		{`"x@en`, nil, true},
-		{`"x\u0124"`, NewLiteral(`x\u0124`, XMLSchemaString, ""), false},
+		{
+			`<http://object#name> <http://www.w3.org/2000/01/rdf-schema#subclassOf> "some value"@en .`,
+			`<http://object#name> <http://www.w3.org/2000/01/rdf-schema#subclassOf> "some value"@en .`,
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got, err := ParseLiteral(tt.input)
+			gotTriple, _, err := ParseLine(tt.input)
 			if gotErr := err != nil; gotErr != tt.wantErr {
 				t.Fatalf("got err = %v, wantErr = %v", err, tt.want)
 			}
 			if tt.wantErr {
 				return
 			}
-			if diff := cmp.Diff(tt.want, got, literalCmpOpt); diff != "" {
-				t.Errorf("ParseLiteral(%q) created unexpected diff (-want, +got): %s", tt.input, diff)
+			if gotTriple == nil {
+				t.Fatalf("expected triple, got comment")
+			}
+			gotStr := gotTriple.String()
+			if diff := cmp.Diff(tt.want, gotStr); diff != "" {
+				t.Errorf("ParseLine(%q).String() got %q; unexpected diff (-want, +got):\n  %s", tt.input, gotStr, diff)
 			}
 		})
 	}
