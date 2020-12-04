@@ -164,6 +164,9 @@ func (o *Object) IRI() IRI { return o.iri }
 // BlankNodeID returns the blank node id for the term. The result is undefined if IsBlankNode() is false
 func (o *Object) BlankNodeID() BlankNodeID { return o.blankNodeID }
 
+// Literal returns the literal for the term. The result is undefined if IsLiteral() is false
+func (o *Object) Literal() Literal { return o.lit }
+
 // String returns the N-Triple formatted term.
 func (o *Object) String() string {
 	if o.IsBlankNode() {
@@ -172,7 +175,7 @@ func (o *Object) String() string {
 	if o.IsIRI() {
 		return fmt.Sprintf("<%s>", string(o.iri))
 	}
-	return literalString(o.lit)
+	return LiteralString(o.lit)
 }
 
 // Literal is interface for an object that can act as an RDF literal.
@@ -221,7 +224,10 @@ func (gl *genericLiteral) LanguageTag() string {
 	return gl.langTag
 }
 
-func literalString(l Literal) string {
+// LiteralString returns the lexical form of a Literal. This is the literal form
+// that occurs in an NTriples statement, not a value that should be used as the
+// string value f the literal.
+func LiteralString(l Literal) string {
 	quotedString := fmt.Sprintf("%q", l.LexicalForm())
 	// TODO(reddaly): Obey "Production of Terminals section" of https://www.w3.org/TR/n-triples/#grammar-production-LANGTAG.
 	if lang := l.LanguageTag(); lang != "" {
