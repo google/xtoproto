@@ -31,7 +31,7 @@ const (
 	Continue
 )
 
-// StreamTriples decodes triples from an XML token stream.
+// ReadTriples decodes triples from an XML token stream.
 func ReadTriples(reader xml.TokenReader, receiver func(t *ntriples.Triple) (IterationDecision, error)) {
 
 }
