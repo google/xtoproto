@@ -1,0 +1,14 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["generate_test_cases.go"],
+    importpath = "github.com/google/xtoproto/rdf/rdfxml/generate_test_cases",
+    visibility = ["//visibility:private"],
+)
+
+go_binary(
+    name = "generate_test_cases",
+    embed = [":go_default_library"],
+    visibility = ["//visibility:public"],
+)
