@@ -5,6 +5,7 @@ go_library(
     srcs = ["ntriples.go"],
     importpath = "github.com/google/xtoproto/rdf/ntriples",
     visibility = ["//visibility:public"],
+    deps = ["//rdf/iri:go_default_library"],
 )
 
 go_test(

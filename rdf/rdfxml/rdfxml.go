@@ -268,7 +268,7 @@ func readNodeElem(p *Parser, start xml.StartElement) (*ntriples.Subject, error) 
 			}
 			subject = newSubject
 		case RDFAbout:
-			subIRI, err := parseIRI(attr.Value)
+			subIRI, err := resolve(p, attr.Value)
 			if err != nil {
 				return nil, p.errorf("bad IRI for rdf:Description's rdf:about attribute: %w", err)
 			}
