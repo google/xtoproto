@@ -4,6 +4,7 @@
 package ntriples
 
 import (
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -301,7 +302,7 @@ func ParseLine(line string) (*Triple, *Comment, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse subject of line: %w", err)
 	}
-	pred, rest, err := parseIRI(strings.TrimLeft(rest, " \t"))
+	pred, rest, err := parseIRIRef(strings.TrimLeft(rest, " \t"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse subject of line: %w", err)
 	}
@@ -346,7 +347,7 @@ func parseSubject(input string) (*Subject, string, error) {
 		}
 		return NewSubjectBlankNodeID(got), rest, nil
 	case '<':
-		got, rest, err := parseIRI(input)
+		got, rest, err := parseIRIRef(input)
 		if err != nil {
 			return nil, "", err
 		}
@@ -368,7 +369,7 @@ func parseObject(input string) (*Object, string, error) {
 		}
 		return NewObjectBlankNodeID(got), rest, nil
 	case '<':
-		got, rest, err := parseIRI(input)
+		got, rest, err := parseIRIRef(input)
 		if err != nil {
 			return nil, "", err
 		}
@@ -405,13 +406,19 @@ var (
 	literalRegexp  = regexp.MustCompile(`^` + stringLiteralQuote + `(?:(?:\^\^` + iriref + `)|` + langTag + `)?`)
 )
 
-func parseIRI(input string) (IRI, string, error) {
+func parseIRIRef(input string) (IRI, string, error) {
 	match := irirefRegexp.FindStringIndex(input)
 	if len(match) == 0 {
 		return "", "", fmt.Errorf("invalid IRIREF: %q", input)
 	}
+	unnormalized := input[1 : match[1]-1]
+	normalized, err := canonicalizeIRILiteral(unnormalized)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to normalize IRI string %q: %w", unnormalized, err)
+	}
+	rest := input[match[1]:]
 	// TODO(reddaly): Canonicalize IRI (e.g., make unicode hex all one case).
-	return IRI(input[1 : match[1]-1]), input[match[1]:], nil
+	return IRI(normalized), rest, nil
 }
 
 func parseBlankNode(input string) (BlankNodeID, string, error) {
@@ -454,7 +461,7 @@ func (c *Comment) Line() string {
 	return fmt.Sprintf("#%s", c.contents)
 }
 
-var stringLiteralCharCapture = regexp.MustCompile(`(?:([^\x22\x5C\x{A}\x{D}])|(` + echar + `)|(` + uchar + `))*`)
+var stringLiteralCharCapture = regexp.MustCompile(`([^\x22\x5C\x{A}\x{D}])|(` + echar + `)|(` + uchar + `)`)
 
 func canonicalizeString(in string) (string, error) {
 	canonical := strings.Builder{}
@@ -469,7 +476,48 @@ func canonicalizeString(in string) (string, error) {
 				return "", err
 			}
 			canonical.WriteRune(rune(code))
+		} else {
+			return "", fmt.Errorf("internal error with string %q - charmatch %+v", in, charMatch)
 		}
 	}
 	return canonical.String(), nil
+}
+
+var iriLiteralCharCapture = regexp.MustCompile(`(?:` +
+	// capture group 1 is a non-uchar character:
+	`([^\x00-\x20<>"{}|^` + "`" + `\\])` +
+	"|" +
+	// capture group 2 is a uchar character.
+	`(` + uchar + `)` +
+	`)`)
+
+// canonicalizeIRILiteral parses the literal contents of an IRI ref (the
+// "http://blah" part of "<http://blah>") by replacing uchars with their unicode
+// points.
+func canonicalizeIRILiteral(in string) (string, error) {
+	canonical := &strings.Builder{}
+	matches := iriLiteralCharCapture.FindAllStringSubmatch(in, -1)
+	for i, charMatch := range matches {
+		if c := charMatch[1]; len(c) != 0 {
+			canonical.WriteString(c)
+		} else if c := charMatch[2]; len(c) != 0 {
+			code, err := strconv.ParseInt(c[2:], 16, 64)
+			if err != nil {
+				return "", err
+			}
+			// TODO(reddaly): Check if the character needs to be percent-encoded?
+			canonical.WriteRune(rune(code))
+		} else {
+			return "", fmt.Errorf("internal error with string %q - charmatch[%d] = %s", in, i, mustJSONStr(charMatch))
+		}
+	}
+	return canonical.String(), nil
+}
+
+func mustJSONStr(thing interface{}) string {
+	bytes, err := json.Marshal(thing)
+	if err != nil {
+		panic(err)
+	}
+	return string(bytes)
 }

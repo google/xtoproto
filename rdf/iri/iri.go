@@ -30,7 +30,18 @@ func (iri IRI) String() string {
 	return fmt.Sprintf("<%s>", string(iri))
 }
 
-// Canonicalize returns the N-Tuples-formatted IRI: "<" + iri + ">".
-func (iri IRI) Canonicalize() IRI {
+// Normalization background reading:
+// - https://blog.golang.org/normalization
+// - https://www.ietf.org/rfc/rfc3987.html#section-5
+//    - https://www.ietf.org/rfc/rfc3987.html#section-5.3.2.3 - percent encoding
+
+// NormalizePercentEncoding returns an IRI that replaces any unnecessarily
+// percent-escaped characters with unescaped characters.
+//
+// RFC3987 discusses this normalization procedure in 5.3.2.3:
+// https://www.ietf.org/rfc/rfc3987.html#section-5.3.2.3.
+func (iri IRI) NormalizePercentEncoding() IRI {
+	// Background reading:
+	//    -  - percent encoding
 	return iri
 }

@@ -112,12 +112,16 @@ func mappingFromSortedTriples(want, got []*ntriples.Triple) func(ntriples.BlankN
 		return nil
 	}
 	m := map[ntriples.BlankNodeID]ntriples.BlankNodeID{}
+	hasEntry := func(id ntriples.BlankNodeID) bool {
+		_, ok := m[id]
+		return ok
+	}
 	for i, canonicalTriple := range want {
 		gotTriple := got[i]
-		if canonicalTriple.Subject().IsBlankNode() && gotTriple.Subject().IsBlankNode() {
+		if canonicalTriple.Subject().IsBlankNode() && gotTriple.Subject().IsBlankNode() && !hasEntry(gotTriple.Subject().BlankNodeID()) {
 			m[gotTriple.Subject().BlankNodeID()] = canonicalTriple.Subject().BlankNodeID()
 		}
-		if canonicalTriple.Object().IsBlankNode() && gotTriple.Object().IsBlankNode() {
+		if canonicalTriple.Object().IsBlankNode() && gotTriple.Object().IsBlankNode() && !hasEntry(gotTriple.Object().BlankNodeID()) {
 			m[gotTriple.Object().BlankNodeID()] = canonicalTriple.Object().BlankNodeID()
 		}
 	}
