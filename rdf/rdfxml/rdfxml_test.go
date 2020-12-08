@@ -35,7 +35,8 @@ func TestReadTriples_positive(t *testing.T) {
 				t.Fatalf("failed to parse triples: %v", err)
 			}
 			t.Logf("want %d triples", len(want))
-			got, err := ReadAllTriples(xmlTokenizerFromString(tt.InputXML))
+			parser := NewParser(xmlTokenizerFromString(tt.InputXML), &ParserOptions{BaseURL: ntriples.IRI(tt.DocumentURL)})
+			got, err := parser.ReadAllTriples()
 			if err != nil {
 				t.Errorf("RDF/XML parse failed: %v", err)
 			}
