@@ -55,6 +55,82 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestParseIRIRef(t *testing.T) {
+	tests := []struct {
+		t        *Triple
+		in       string
+		want     IRI
+		wantRest string
+		wantErr  bool
+	}{
+		{
+			in:       `<https://github.com/google/xtoproto/testing#prop1>`,
+			want:     "https://github.com/google/xtoproto/testing#prop1",
+			wantRest: "",
+		},
+		{
+			in:       `<https://github.com/google/xtoproto/testing#prop1> kasdfklsd!!`,
+			want:     "https://github.com/google/xtoproto/testing#prop1",
+			wantRest: " kasdfklsd!!",
+		},
+		{
+			in:   `<http://r&#xE9;sum&#xE9;.example.org>`,
+			want: `http://r&#xE9;sum&#xE9;.example.org`,
+		},
+		{
+			in:   `<http://\u00E9.example.org>`,
+			want: `http://é.example.org`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got, gotRest, err := parseIRIRef(tt.in)
+			if gotErr := err != nil; gotErr != tt.wantErr {
+				t.Errorf("got err %v, wantErr = %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("parseIRIRef(%q)\n  got  %s\n  !=\n  want %s", tt.in, got, tt.want)
+			}
+			if gotRest != tt.wantRest {
+				t.Errorf("parseIRIRef(%q)\n  got rest  %s\n  !=\n  want rest %s", tt.in, gotRest, tt.wantRest)
+			}
+		})
+	}
+}
+
+func TestCanonicalizeIRILiteral(t *testing.T) {
+	tests := []struct {
+		t       *Triple
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{
+			in:   `https://github.com/google/xtoproto/testing#prop1`,
+			want: "https://github.com/google/xtoproto/testing#prop1",
+		},
+		{
+			in:   `#prop1`,
+			want: "#prop1",
+		},
+		{
+			in:   `http://r&#xE9;sum&#xE9;.example.org`,
+			want: "http://r&#xE9;sum&#xE9;.example.org",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			got, err := canonicalizeIRILiteral(tt.in)
+			if gotErr := err != nil; gotErr != tt.wantErr {
+				t.Errorf("got err %v, wantErr = %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("canonicalizeIRILiteral(%q)\n  got  %s\n  !=\n  want %s", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRoundTrip(t *testing.T) {
 	tests := []struct {
 		t *Triple
