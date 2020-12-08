@@ -5,31 +5,19 @@ package ntriples
 
 import (
 	"fmt"
-	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
+
+	"github.com/google/xtoproto/rdf/iri"
 )
 
 // An IRI (Internationalized Resource Identifier) within an RDF graph is a
 // Unicode string [UNICODE] that conforms to the syntax defined in RFC 3987
 // [RFC3987].
 //
-// See https://www.w3.org/TR/2014/REC-rdf11-concepts-20140225/#dfn-iri.
-type IRI string
-
-// Check reports if the IRI is valid according to the specification.
-func (iri IRI) Check() error {
-	_, err := url.Parse(string(iri))
-	if err != nil {
-		return fmt.Errorf("%q is not a valid URL: %w", string(iri), err)
-	}
-	return nil
-}
-
-// String returns the N-Tuples-formatted IRI: "<" + iri + ">".
-func (iri IRI) String() string {
-	return fmt.Sprintf("<%s>", string(iri))
-}
+// The underlying type of IRI is string, allowing convient const declaration.
+type IRI = iri.IRI
 
 const (
 	// LangString is the type of a literal string that has a language annotation.
@@ -237,7 +225,13 @@ func (gl *genericLiteral) LanguageTag() string {
 // that occurs in an NTriples statement, not a value that should be used as the
 // string value f the literal.
 func LiteralString(l Literal) string {
-	quotedString := fmt.Sprintf("%q", l.LexicalForm())
+	lexForm := l.LexicalForm()
+	if x, err := canonicalizeString(lexForm); err != nil {
+		panic(err)
+	} else {
+		lexForm = x
+	}
+	quotedString := fmt.Sprintf("%q", lexForm)
 	// TODO(reddaly): Obey "Production of Terminals section" of https://www.w3.org/TR/n-triples/#grammar-production-LANGTAG.
 	if lang := l.LanguageTag(); lang != "" {
 		return fmt.Sprintf("%s@%s", quotedString, lang)
@@ -458,4 +452,24 @@ func (c *Comment) Contents() string {
 // Line returns the comment literal with the leading '#' character.
 func (c *Comment) Line() string {
 	return fmt.Sprintf("#%s", c.contents)
+}
+
+var stringLiteralCharCapture = regexp.MustCompile(`(?:([^\x22\x5C\x{A}\x{D}])|(` + echar + `)|(` + uchar + `))*`)
+
+func canonicalizeString(in string) (string, error) {
+	canonical := strings.Builder{}
+	for _, charMatch := range stringLiteralCharCapture.FindAllStringSubmatch(in, -1) {
+		if len(charMatch[1]) != 0 {
+			canonical.WriteString(charMatch[1])
+		} else if len(charMatch[2]) != 0 {
+			canonical.WriteString(charMatch[2])
+		} else if len(charMatch[3]) != 0 {
+			code, err := strconv.ParseInt(charMatch[3][2:], 16, 64)
+			if err != nil {
+				return "", err
+			}
+			canonical.WriteRune(rune(code))
+		}
+	}
+	return canonical.String(), nil
 }
