@@ -71,6 +71,9 @@ type PositiveParserCase struct {
 	// InputXML is the input XML file contents.
 	InputXML string
 
+	// DocumentURL is the base url to use for the document.
+	DocumentURL string
+
 	// OutputNTriples is the expected set of output triples.
 	OutputNTriples string
 }
@@ -82,6 +85,9 @@ type NegativeParserCase struct {
 
 	// InputXML is the input XML file contents.
 	InputXML string
+
+	// DocumentURL is the base url to use for the document.
+	DocumentURL string
 }
 
 `
@@ -90,8 +96,13 @@ type NegativeParserCase struct {
 	posStructStrings := []string{}
 	for _, t := range positives {
 		posStructStrings = append(posStructStrings,
-			fmt.Sprintf("  {\n    Name:           %q,\n    InputXML:       %q,\n    OutputNTriples: %q,\n  },",
-				t.Name, t.InputXML, t.OutputNTriples))
+			fmt.Sprintf(`  {
+    Name:           %q,
+    InputXML:       %q,
+    DocumentURL:    %q,
+    OutputNTriples: %q,
+  },`,
+				t.Name, t.InputXML, t.DocumentURL, t.OutputNTriples))
 	}
 	code += fmt.Sprintf("var Positives = []PositiveParserCase{\n%s\n}\n\n", strings.Join(posStructStrings, "\n"))
 
@@ -125,6 +136,7 @@ func loadCases(ctx context.Context, mf *testManifest) ([]*PositiveParserCase, []
 		pos = append(pos, &PositiveParserCase{
 			Name:           t.About,
 			InputXML:       inputContents,
+			DocumentURL:    t.InputDocument.RDFXMLDocument.About,
 			OutputNTriples: outputContents,
 		})
 	}
@@ -137,8 +149,9 @@ func loadCases(ctx context.Context, mf *testManifest) ([]*PositiveParserCase, []
 			return nil, nil, err
 		}
 		neg = append(neg, &NegativeParserCase{
-			Name:     t.About,
-			InputXML: inputContents,
+			Name:        t.About,
+			InputXML:    inputContents,
+			DocumentURL: t.InputDocument.RDFXMLDocument.About,
 		})
 	}
 	return pos, neg, nil
@@ -163,6 +176,9 @@ type PositiveParserCase struct {
 	// InputXML is the input XML file contents.
 	InputXML string
 
+	// DocumentURL is the base url to use for the document.
+	DocumentURL string
+
 	// OutputNTriples is the expected set of output triples.
 	OutputNTriples string
 }
@@ -174,6 +190,9 @@ type NegativeParserCase struct {
 
 	// InputXML is the input XML file contents.
 	InputXML string
+
+	// DocumentURL is the base url to use for the document.
+	DocumentURL string
 }
 
 type testManifest struct {
