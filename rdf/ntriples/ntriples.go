@@ -149,6 +149,15 @@ func NewObjectBlankNodeID(blankNodeID BlankNodeID) *Object {
 	return &Object{blankNodeID: blankNodeID}
 }
 
+// NewObjectFromSubject returns an Object with the same identity as the provided
+// subject.
+func NewObjectFromSubject(s *Subject) *Object {
+	if s.IsBlankNode() {
+		return NewObjectBlankNodeID(s.BlankNodeID())
+	}
+	return NewObjectIRI(s.IRI())
+}
+
 // IsIRI reports if the term is an IRI.
 func (o *Object) IsIRI() bool { return o.iri != "" }
 
@@ -314,12 +323,17 @@ func ParseLine(line string) (*Triple, *Comment, error) {
 	return NewTriple(sub, pred, obj), nil, nil
 }
 
+// ParseLines returns all of the triples parsed from the input lines. Comments
+// are excluded.
 func ParseLines(lines []string) ([]*Triple, error) {
 	var triples []*Triple
 	for i, line := range lines {
 		t, _, err := ParseLine(line)
 		if err != nil {
 			return nil, fmt.Errorf("%d: %w", i+1, err)
+		}
+		if t == nil {
+			continue
 		}
 		triples = append(triples, t)
 	}
