@@ -227,7 +227,7 @@ func (gl *genericLiteral) LanguageTag() string {
 // string value f the literal.
 func LiteralString(l Literal) string {
 	lexForm := l.LexicalForm()
-	if x, err := canonicalizeString(lexForm); err != nil {
+	if x, err := canonicalStringLiteral(lexForm); err != nil {
 		panic(err)
 	} else {
 		lexForm = x
@@ -431,6 +431,13 @@ func parseBlankNode(input string) (BlankNodeID, string, error) {
 }
 
 // ParseLiteral returns an RDF literal parsed from a string.
+//
+// The string must start with a " character.
+//
+// Any portion of the string that is not part of the parsedliteral will be
+// returned as the second argument. If the caller wishes to verify that
+// the entire string is a literal, the caller should check that the second
+// argument is equal to the empty string.
 func ParseLiteral(input string) (Literal, string, error) {
 	parts := literalRegexp.FindStringSubmatch(input)
 	if parts == nil {
@@ -463,7 +470,21 @@ func (c *Comment) Line() string {
 
 var stringLiteralCharCapture = regexp.MustCompile(`([^\x22\x5C\x{A}\x{D}])|(` + echar + `)|(` + uchar + `)`)
 
-func canonicalizeString(in string) (string, error) {
+const (
+	stringLiteralRegularCharGroup = 1
+	stringLiteralECharGroup       = 2
+	stringLiteralUCharGroup       = 3
+)
+
+// canonicalizeAlreadyQuotedContents returns the escaped characters that go between
+// quotation marks for string literals. The argument is already a legal
+// string literal (without the quotation marsk) - that is, the argument
+// already has escape sequences where necessary.
+//
+// The returned value will be the canonical form of the string according to the
+// rules in section 4 of the N-Triples spec:
+// https://www.w3.org/TR/n-triples/#canonical-ntriples.
+func canonicalizeAlreadyQuotedContents(in string) (string, error) {
 	canonical := strings.Builder{}
 	for _, charMatch := range stringLiteralCharCapture.FindAllStringSubmatch(in, -1) {
 		if len(charMatch[1]) != 0 {
@@ -481,6 +502,62 @@ func canonicalizeString(in string) (string, error) {
 		}
 	}
 	return canonical.String(), nil
+}
+
+// parseStringLiteral parses the literal form a string into a Go string.
+func parseStringLiteral(in string) (string, error) {
+	canonical := strings.Builder{}
+	for _, charMatch := range stringLiteralCharCapture.FindAllStringSubmatch(in, -1) {
+		if len(charMatch[1]) != 0 {
+			canonical.WriteString(charMatch[1])
+		} else if len(charMatch[2]) != 0 {
+			canonical.WriteString(charMatch[2])
+		} else if len(charMatch[3]) != 0 {
+			code, err := strconv.ParseInt(charMatch[3][2:], 16, 64)
+			if err != nil {
+				return "", err
+			}
+			canonical.WriteRune(rune(code))
+		} else {
+			return "", fmt.Errorf("internal error with string %q - charmatch %+v", in, charMatch)
+		}
+	}
+	return canonical.String(), nil
+}
+
+// canonicalFormEscapes maps a rune to an escaped version of that rune.
+//
+// "Within STRING_LITERAL_QUOTE, only the characters U+0022, U+005C, U+000A,
+// U+000D are encoded using ECHAR. ECHAR must not be used for characters that
+// are allowed directly in STRING_LITERAL_QUOTE."
+var canonicalFormEscapes = map[rune]string{
+	'\u0022': "\\\u0022", // "
+	'\u005C': "\\\u005C", // \
+	'\u000A': "\\\u000A", // line feed (\n)
+	'\u000D': "\\\u000D", // carriage return (\r)
+}
+
+// canonicalStringLiteral returns the escaped characters that go between
+// quotation marks for string literals. The argument is a "lexical form" -
+// a unicode string without any quoting.
+//
+// The returned value will be the canonical form of the string according to the
+// rules in section 4 of the N-Triples spec:
+// https://www.w3.org/TR/n-triples/#canonical-ntriples.
+func canonicalStringLiteral(in string) (string, error) {
+	quoted := strings.Builder{}
+	for _, r := range []rune(in) {
+		// "Within STRING_LITERAL_QUOTE, only the characters U+0022, U+005C, U+000A,
+		// U+000D are encoded using ECHAR. ECHAR must not be used for characters
+		// that are allowed directly in STRING_LITERAL_QUOTE."
+		if echar, ok := canonicalFormEscapes[r]; ok {
+			quoted.WriteString(echar)
+			continue
+		}
+		// Otherwise, it's easy - there's no need to escape anything.
+		quoted.WriteRune(r)
+	}
+	return quoted.String(), nil
 }
 
 var iriLiteralCharCapture = regexp.MustCompile(`(?:` +

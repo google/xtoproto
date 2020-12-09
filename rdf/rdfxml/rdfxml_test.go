@@ -12,7 +12,10 @@ import (
 	"github.com/google/xtoproto/rdf/rdfxml/rdftestcases"
 )
 
-const parseIsFatal = true
+const (
+	parseIsFatal = true
+	logNTriples  = true
+)
 
 var cmpOpts = []cmp.Option{
 	cmp.Transformer("triple", func(tr *ntriples.Triple) stringifiedTriple {
@@ -45,6 +48,11 @@ func TestReadTriples_positive(t *testing.T) {
 					t.Fatalf("RDF/XML parse failed: %v", err)
 				} else {
 					t.Errorf("RDF/XML parse failed: %v", err)
+				}
+			}
+			if logNTriples {
+				for i, tr := range got {
+					t.Logf("got triple[%02d]: %s", i, tr)
 				}
 			}
 			if diff := diffTriples(t, want, got); diff != "" {
