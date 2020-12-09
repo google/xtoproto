@@ -81,6 +81,11 @@ func TestParseIRIRef(t *testing.T) {
 			in:   `<http://\u00E9.example.org>`,
 			want: `http://é.example.org`,
 		},
+		{
+			// Preserve percent encoding when it is necessary.
+			in:   `<http://\u00E9.example.org/dog%20house/%B5>`,
+			want: `http://é.example.org/dog%20house/µ`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {

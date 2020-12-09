@@ -4,8 +4,8 @@ load("@io_bazel_rules_go//go:def.bzl", "go_test")
 # gazelle:resolve go github.com/google/xtoproto/examples/example02/converter02 :go_default_library
 go_xtoproto_converter_library(
     name = "go_default_library",
-    request = "codegen_request.pbtxt",
     importpath = "github.com/google/xtoproto/examples/example02/converter02",
+    request = "codegen_request.pbtxt",
     deps = [
         "//examples/example02:go_default_library",
     ],
