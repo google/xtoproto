@@ -159,11 +159,25 @@ type ParserOptions struct {
 	BaseURL ntriples.IRI
 }
 
+type baseStackEntry struct {
+	iri         ntriples.IRI
+	declaredIDs map[ntriples.IRI]bool
+}
+
 // Parser is an RDF/XML document parser.
 type Parser struct {
-	reader             xml.TokenReader
-	tripleCallback     func(t *ntriples.Triple) (IterationDecision, error)
-	baseURIStack       []ntriples.IRI
+	reader         xml.TokenReader
+	tripleCallback func(t *ntriples.Triple) (IterationDecision, error)
+	// TODO(reddaly): Update the way xml:base is treated to respect rules of 2.14:
+	// The rdf:ID attribute on a node element (not property element, that has
+	// another meaning) can be used instead of rdf:about and gives a relative IRI
+	// equivalent to # concatenated with the rdf:ID attribute value. So for
+	// example if rdf:ID="name", that would be equivalent to rdf:about="#name".
+	// rdf:ID provides an additional check since the same name can only appear
+	// once in the scope of an xml:base value (or document, if none is given), so
+	// is useful for defining a set of distinct, related terms relative to the
+	// same IRI.
+	xmlBaseStack       []*baseStackEntry
 	langStack          []string
 	nextBlankNodeID    int
 	observedBlankNodes map[ntriples.BlankNodeID]bool
@@ -201,7 +215,11 @@ func (p *Parser) pushBaseURI(baseURI ntriples.IRI) {
 	// RDF/XML spec: An empty same document reference "" resolves against the URI
 	// part of the base URI; any fragment part is ignored. See Uniform Resource
 	// Identifiers (URI) [RFC3986].
-	p.baseURIStack = append(p.baseURIStack, removeFragment(baseURI))
+	entry := &baseStackEntry{
+		iri:         removeFragment(baseURI),
+		declaredIDs: map[ntriples.IRI]bool{},
+	}
+	p.xmlBaseStack = append(p.xmlBaseStack, entry)
 }
 
 func removeFragment(baseURI ntriples.IRI) ntriples.IRI {
@@ -213,7 +231,7 @@ func removeFragment(baseURI ntriples.IRI) ntriples.IRI {
 }
 
 func (p *Parser) popBaseURI() {
-	p.baseURIStack = p.baseURIStack[0 : len(p.baseURIStack)-1]
+	p.xmlBaseStack = p.xmlBaseStack[0 : len(p.xmlBaseStack)-1]
 }
 
 func (p *Parser) pushLang(lang string) {
@@ -225,10 +243,24 @@ func (p *Parser) popLang() {
 }
 
 func (p *Parser) baseURI() ntriples.IRI {
-	if len(p.baseURIStack) == 0 {
+	if len(p.xmlBaseStack) == 0 {
 		return ""
 	}
-	return p.baseURIStack[len(p.baseURIStack)-1]
+	return p.xmlBaseStack[len(p.xmlBaseStack)-1].iri
+}
+
+// declareID declares that a nodeElement with the given ID has been encountered
+// in the scope of the current xml:base element. If such an ID has already been
+// registered in the current scope, an error is returned.
+func (p *Parser) declareID(id ntriples.IRI) error {
+	if len(p.xmlBaseStack) == 0 {
+		return p.errorf("internal error - empty base stack")
+	}
+	entry := p.xmlBaseStack[len(p.xmlBaseStack)-1]
+	if entry.declaredIDs[id] {
+		return p.errorf("duplicate node element id within same xml:base scope; see section 2.14 of the RDF/XML spec <https://www.w3.org/TR/rdf-syntax-grammar/#nodeElementURIs>; offending id = %s", id)
+	}
+	return nil
 }
 
 func (p *Parser) language() string {
@@ -341,6 +373,9 @@ func readNodeElemUsingSubject(p *Parser, start xml.StartElement, forcedSubject *
 			subIRI, err := resolve(p, "#"+attr.Value)
 			if err != nil {
 				return nil, p.errorf("bad IRI for rdf:Description's rdf:ID attribute: %w", err)
+			}
+			if err := p.declareID(subIRI); err != nil {
+				return nil, err
 			}
 			newSubject := ntriples.NewSubjectIRI(subIRI)
 			if subject != nil {
@@ -953,7 +988,7 @@ func readNextChildOfPropertyElement(p *Parser) (*propertyElemParseInfo, error) {
 // fragment identifier to the in-scope base URI. The empty string is transformed
 // into an IRI by substituting the in-scope base URI.
 func resolve(p *Parser, s string) (ntriples.IRI, error) {
-	glog.Infof("resolve(%q) with baseURI %s and stack %+v", s, p.baseURI(), p.baseURIStack)
+	glog.Infof("resolve(%q) with baseURI %s and stack %+v", s, p.baseURI(), p.xmlBaseStack)
 	if s == "" {
 		return p.baseURI(), nil
 	}
