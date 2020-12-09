@@ -131,6 +131,12 @@ func TestResolveReference(t *testing.T) {
 			ref:  `http://example/q?abc=1&def=2`,
 			want: `http://example/q?abc=1&def=2`,
 		},
+		// {
+		// 	name: "An empty same document reference \"\" resolves against the URI part of the base URI; any fragment part is ignored. See Uniform Resource Identifiers (URI) [RFC3986]",
+		// 	base: "http://bigbird@google.com/path#x-frag",
+		// 	ref:  ``,
+		// 	want: `http://bigbird@google.com/path`,
+		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
