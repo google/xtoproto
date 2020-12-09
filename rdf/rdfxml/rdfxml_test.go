@@ -16,6 +16,7 @@ import (
 const (
 	parseIsFatal = true
 	logNTriples  = true
+	logNXML      = true
 )
 
 var cmpOpts = []cmp.Option{
@@ -51,6 +52,9 @@ func TestReadTriples_positive(t *testing.T) {
 					t.Errorf("RDF/XML parse failed: %v", err)
 				}
 			}
+			if logNXML {
+				t.Logf("Input XML:\n%s", tt.InputXML)
+			}
 			if logNTriples {
 				for i, tr := range got {
 					t.Logf("got triple[%02d]: %s", i, tr)
@@ -71,6 +75,9 @@ func TestReadTriples_negative(t *testing.T) {
 			got, err := parser.ReadAllTriples()
 			if err != nil {
 				t.Logf("got parser error, which we wanted: %v", err)
+			}
+			if logNXML {
+				t.Logf("Input XML:\n%s", tt.InputXML)
 			}
 			if logNTriples {
 				for i, tr := range got {
