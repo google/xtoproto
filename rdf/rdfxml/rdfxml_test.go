@@ -3,6 +3,7 @@ package rdfxml
 import (
 	"encoding/xml"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"testing"
@@ -55,6 +56,7 @@ func TestReadTriples_positive(t *testing.T) {
 					t.Logf("got triple[%02d]: %s", i, tr)
 				}
 			}
+			got, want = canonicalizedTriples(got), canonicalizedTriples(want)
 			if diff := diffTriples(t, want, got); diff != "" {
 				t.Errorf("unexpected diff in parsed triples (-want, +got):\n  %s", diff)
 			}
@@ -256,4 +258,42 @@ func TestIsXMLAttr(t *testing.T) {
 			}
 		})
 	}
+}
+
+func canonicalizedTriples(in []*ntriples.Triple) []*ntriples.Triple {
+	var out []*ntriples.Triple
+	for _, tr := range in {
+		out = append(out, canonicalizedTriple(tr))
+	}
+	return out
+}
+
+func canonicalizedTriple(tr *ntriples.Triple) *ntriples.Triple {
+	if !tr.Object().IsLiteral() {
+		return tr
+	}
+	return ntriples.NewTriple(tr.Subject(), tr.Predicate(), ntriples.NewObjectLiteral(canonicalizedLiteral(tr.Object().Literal())))
+}
+
+func canonicalizedLiteral(lit ntriples.Literal) ntriples.Literal {
+	if lit.Datatype() != RDFXMLLiteral {
+		return lit
+	}
+	// read in the xml and then print it out again
+	dec := xml.NewDecoder(strings.NewReader(lit.LexicalForm()))
+	out := &strings.Builder{}
+	enc := xml.NewEncoder(out)
+	for {
+		tok, err := dec.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return lit
+		}
+		if err := enc.EncodeToken(tok); err != nil {
+			return lit
+		}
+	}
+	return ntriples.NewLiteral(out.String(), RDFXMLLiteral, "")
 }
