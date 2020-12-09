@@ -26,7 +26,7 @@ const (
 	RDFXMLLiteral  ntriples.IRI = RDF + "XMLLiteral"
 	RDFXMLProperty ntriples.IRI = RDF + "XMLProperty"
 	RDFID          ntriples.IRI = RDF + "ID"
-	RDFNodeID      ntriples.IRI = RDF + "NodeID"
+	RDFNodeID      ntriples.IRI = RDF + "nodeID"
 	RDFLI          ntriples.IRI = RDF + "li"
 	RDFAbout       ntriples.IRI = RDF + "about"
 	RDFType        ntriples.IRI = RDF + "type"
