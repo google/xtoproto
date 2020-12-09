@@ -858,16 +858,18 @@ func readElementContents(p *Parser) ([]byte, error) {
 		if err != nil {
 			return nil, p.errorf("XML read error: %w", err)
 		}
-		switch tok.(type) {
+		switch t := tok.(type) {
 		case xml.EndElement:
 			if depth == 0 {
 				if err := enc.Flush(); err != nil {
 					return nil, p.errorf("XML printing error: %w", err)
 				}
+				glog.Infof("readElementContents got text contents %q", string(buf.Bytes()))
 				return buf.Bytes(), nil
 			}
 			depth--
-		case *xml.StartElement:
+		case xml.StartElement:
+			glog.Infof("readElementContents depth %d, start %q", depth, t.Name.Local)
 			depth++
 		}
 		if err := enc.EncodeToken(tok); err != nil {
@@ -947,7 +949,8 @@ var beginsWithXMLExpr = regexp.MustCompile(`^(?i)xml`)
 var xmlnsRE = regexp.MustCompile(`^(?i)` + regexp.QuoteMeta(xmlNS))
 
 func isXMLAttr(name xml.Name) bool {
-	return xmlnsRE.MatchString(name.Space) || beginsWithXMLExpr.MatchString(name.Local)
+	glog.Infof("isXMLAttr(%+v) = %v", name, xmlnsRE.MatchString(name.Space) || beginsWithXMLExpr.MatchString(name.Local) || beginsWithXMLExpr.MatchString(name.Space))
+	return xmlnsRE.MatchString(name.Space) || beginsWithXMLExpr.MatchString(name.Local) || beginsWithXMLExpr.MatchString(name.Space)
 }
 
 func isPropertyAttr(name xml.Name) bool {

@@ -45,6 +45,13 @@ func TestString(t *testing.T) {
 			NewTriple(NewSubjectBlankNodeID("a"), "https://github.com/google/xtoproto/testing#prop1", NewObjectLiteral(NewLiteral("xyz", LangString, "en-us"))),
 			`_:a <https://github.com/google/xtoproto/testing#prop1> "xyz"@en-us .`,
 		},
+		{
+			NewTriple(
+				NewSubjectBlankNodeID("a"),
+				"https://github.com/google/xtoproto/testing#prop1",
+				NewObjectLiteral(NewLiteral("tab\tnewline\ncarriage return\rslash\\", LangString, "en-us"))),
+			`_:a <https://github.com/google/xtoproto/testing#prop1> "tab\tnewline\ncarriage return\rslash\\"@en-us .`,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
@@ -212,13 +219,18 @@ func TestParseLiteral(t *testing.T) {
 		{`"x"^^<https://google>`, NewLiteral("x", "https://google", ""), "", false},
 		{`"x"`, NewLiteral("x", XMLSchemaString, ""), "", false},
 		{`"x@en`, nil, "", true},
-		{`"x\u0124" <blah>`, NewLiteral(`x\u0124`, XMLSchemaString, ""), " <blah>", false},
+		{`"x\u0124 Ĥ" <blah>`, NewLiteral("xĤ Ĥ" /* Ĥ = \u0124 */, XMLSchemaString, ""), " <blah>", false},
+		{`"tab\t"`, NewLiteral("tab\t", XMLSchemaString, ""), "", false},
+		{`"line feed\n"`, NewLiteral("line feed\n", XMLSchemaString, ""), "", false},
+		{`"carriage return\n"`, NewLiteral("carriage return\n", XMLSchemaString, ""), "", false},
+		{`"slash\\"`, NewLiteral("slash\\", XMLSchemaString, ""), "", false},
+		{`"tab\tnewline\ncarriage return\rslash\\" <blah>`, NewLiteral("tab\tnewline\ncarriage return\rslash\\", XMLSchemaString, ""), " <blah>", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			got, rest, err := ParseLiteral(tt.input)
 			if gotErr := err != nil; gotErr != tt.wantErr {
-				t.Fatalf("got err = %v, wantErr = %v", err, tt.want)
+				t.Fatalf("got err = %v, wantErr = %v", err, tt.wantErr)
 			}
 			if tt.wantErr {
 				return
