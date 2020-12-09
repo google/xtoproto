@@ -64,6 +64,26 @@ func TestReadTriples_positive(t *testing.T) {
 	}
 }
 
+func TestReadTriples_negative(t *testing.T) {
+	for _, tt := range rdftestcases.Negatives {
+		t.Run(goFriendlyTestName(tt.Name), func(t *testing.T) {
+			parser := NewParser(xmlTokenizerFromString(tt.InputXML), &ParserOptions{BaseURL: ntriples.IRI(tt.DocumentURL)})
+			got, err := parser.ReadAllTriples()
+			if err != nil {
+				t.Logf("got parser error, which we wanted: %v", err)
+			}
+			if logNTriples {
+				for i, tr := range got {
+					t.Logf("got triple[%02d]: %s", i, tr)
+				}
+			}
+			if err == nil {
+				t.Fatalf("successfully parsed %d triples, but we wanted an error", len(got))
+			}
+		})
+	}
+}
+
 func cleanLines(lines []string) []string {
 	var out []string
 	for _, l := range lines {
