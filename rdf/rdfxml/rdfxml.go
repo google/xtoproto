@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/golang/glog"
@@ -273,8 +274,15 @@ func (p *Parser) handleGenericStartElem(elem xml.StartElement) (func() error, er
 	}, nil
 }
 
-// readNodeElem decodes triples from an XML token stream.
 func readNodeElem(p *Parser, start xml.StartElement) (*ntriples.Subject, error) {
+	return readNodeElemUsingSubject(p, start, nil)
+}
+
+// readNodeElemUsingSubject decodes triples from an XML token stream.
+//
+// The forceSubject argument may be nil, in which case the subject is
+// determined based on the element and its attributes.
+func readNodeElemUsingSubject(p *Parser, start xml.StartElement, forcedSubject *ntriples.Subject) (*ntriples.Subject, error) {
 	handleCloseElem, err := p.handleGenericStartElem(start)
 	if err != nil {
 		return nil, err
@@ -292,7 +300,8 @@ func readNodeElem(p *Parser, start xml.StartElement) (*ntriples.Subject, error) 
 	//
 	// If e.subject is empty, then e.subject := bnodeid(identifier :=
 	// generated-blank-node-id()).
-	var subject *ntriples.Subject
+
+	subject := forcedSubject
 
 	attrs := rdfAttributes(start.Attr)
 	for _, attr := range attrs {
@@ -335,11 +344,15 @@ func readNodeElem(p *Parser, start xml.StartElement) (*ntriples.Subject, error) 
 		subject = ntriples.NewSubjectBlankNodeID(p.generateBlankNodeID())
 	}
 
+	eURI := xmlNameToIRI(start.Name)
+	if forcedSubject != nil {
+		eURI = RDFDescription
+	}
 	// If e.URI != rdf:Description then the following statement is added to the graph:
 	//
 	// e.subject.string-value <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> e.URI-string-value .
-	if xmlNameToIRI(start.Name) != RDFDescription {
-		triple := ntriples.NewTriple(subject, RDFType, ntriples.NewObjectIRI(xmlNameToIRI(start.Name)))
+	if eURI != RDFDescription {
+		triple := ntriples.NewTriple(subject, RDFType, ntriples.NewObjectIRI(eURI))
 		ind, err := p.tripleCallback(triple)
 		if err != nil {
 			return nil, p.errorf("triple callback error: %w", err)
@@ -439,7 +452,52 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 	if parseTypeAttr != nil {
 		switch parseTypeAttr.Value {
 		case "Resource":
-			return p.errorf("unsupported parseType Resource")
+			// Section 7.2.18: https://www.w3.org/TR/rdf-syntax-grammar/#parseTypeResourcePropertyElt
+			// n := bnodeid(identifier := generated-blank-node-id()).
+			// Add the following statement to the graph:
+			// e.parent.subject.string-value e.URI-string-value n.string-value .
+			n := p.generateBlankNodeID()
+			triple := ntriples.NewTriple(subject, elemURI, ntriples.NewObjectBlankNodeID(n))
+			ind, err := p.tripleCallback(triple)
+			if err != nil {
+				return p.errorf("triple callback error: %w", err)
+			}
+			if ind == Stop {
+				return nil
+			}
+			if attr := findAttr(propElem, RDFID); attr != nil {
+				i, err := resolve(p, "#"+attr.Value)
+				if err != nil {
+					return err
+				}
+				ind, err := emitReifiedTriple(p, triple, ntriples.NewSubjectIRI(i))
+				if err != nil {
+					return p.errorf("triple callback error: %w", err)
+				}
+				if ind == Stop {
+					return nil
+				}
+			}
+			var badAttributes []string
+			for _, attr := range rdfAttributes(propElem.Attr) {
+				attrIRI := xmlNameToIRI(attr.Name)
+				if attrIRI == RDFID || attrIRI == RDFParseType {
+					continue
+				}
+				badAttributes = append(badAttributes, attr.Name.Local)
+			}
+			if len(badAttributes) != 0 {
+				sort.Strings(badAttributes)
+				return fmt.Errorf("unexpected attributes for rdf:parseType='Resource': only allowed to have an rdf:id and rdf:parseType attribute, got %d extras: %s", len(badAttributes), strings.Join(badAttributes, ","))
+			}
+			propElemNoAttrs := propElem.Copy()
+			propElemNoAttrs.Attr = nil
+
+			if _, err := readNodeElemUsingSubject(p, propElemNoAttrs, ntriples.NewSubjectBlankNodeID(n)); err != nil {
+				return p.errorf("failed while processing parseTypeResourcePropertyElt: of %s: %w", subject, err)
+			}
+
+			return nil
 		case "Collection":
 			return p.errorf("unsupported parseType Collection")
 		case "Literal":
