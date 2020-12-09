@@ -88,6 +88,9 @@ type NegativeParserCase struct {
 
 	// DocumentURL is the base url to use for the document.
 	DocumentURL string
+
+	// Description describes the test case.
+	Description string
 }
 
 `
@@ -110,8 +113,12 @@ type NegativeParserCase struct {
 	negStructStrings := []string{}
 	for _, t := range negatives {
 		negStructStrings = append(negStructStrings,
-			fmt.Sprintf("  {\n    Name:           %q,\n    InputXML:       %q,\n  },",
-				t.Name, t.InputXML))
+			fmt.Sprintf(`  {
+    Name:           %q,
+    InputXML:       %q,
+    Description:    %q,
+  },`,
+				t.Name, t.InputXML, t.Description))
 	}
 	code += fmt.Sprintf("var Negatives = []NegativeParserCase{\n%s\n}\n\n", strings.Join(negStructStrings, "\n"))
 
@@ -152,6 +159,7 @@ func loadCases(ctx context.Context, mf *testManifest) ([]*PositiveParserCase, []
 			Name:        t.About,
 			InputXML:    inputContents,
 			DocumentURL: t.InputDocument.RDFXMLDocument.About,
+			Description: t.Description,
 		})
 	}
 	return pos, neg, nil
@@ -193,6 +201,9 @@ type NegativeParserCase struct {
 
 	// DocumentURL is the base url to use for the document.
 	DocumentURL string
+
+	// Description describes the test case.
+	Description string
 }
 
 type testManifest struct {

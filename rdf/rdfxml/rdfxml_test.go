@@ -78,7 +78,7 @@ func TestReadTriples_negative(t *testing.T) {
 				}
 			}
 			if err == nil {
-				t.Fatalf("successfully parsed %d triples, but we wanted an error", len(got))
+				t.Fatalf("successfully parsed %d triples, but we wanted an error: %s", len(got), tt.Description)
 			}
 		})
 	}
