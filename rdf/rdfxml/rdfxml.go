@@ -184,8 +184,20 @@ func (p *Parser) errorf(format string, args ...interface{}) error {
 }
 
 func (p *Parser) pushBaseURI(baseURI ntriples.IRI) {
-	// TODO(reddaly): Add position within xml to error output.
-	p.baseURIStack = append(p.baseURIStack, baseURI)
+	// https://www.ietf.org/rfc/rfc3986.html#section-5.2
+	//
+	// RDF/XML spec: An empty same document reference "" resolves against the URI
+	// part of the base URI; any fragment part is ignored. See Uniform Resource
+	// Identifiers (URI) [RFC3986].
+	p.baseURIStack = append(p.baseURIStack, removeFragment(baseURI))
+}
+
+func removeFragment(baseURI ntriples.IRI) ntriples.IRI {
+	s := string(baseURI)
+	if idx := strings.IndexRune(s, '#'); idx != -1 {
+		return ntriples.IRI(s[0:idx])
+	}
+	return baseURI
 }
 
 func (p *Parser) popBaseURI() {
@@ -193,7 +205,6 @@ func (p *Parser) popBaseURI() {
 }
 
 func (p *Parser) pushLang(lang string) {
-	// TODO(reddaly): Add position within xml to error output.
 	p.langStack = append(p.langStack, lang)
 }
 
@@ -205,14 +216,14 @@ func (p *Parser) baseURI() ntriples.IRI {
 	if len(p.baseURIStack) == 0 {
 		return ""
 	}
-	return p.baseURIStack[0]
+	return p.baseURIStack[len(p.baseURIStack)-1]
 }
 
 func (p *Parser) language() string {
 	if len(p.langStack) == 0 {
 		return "" // according to 6.1, language is set to the empty string.
 	}
-	return p.langStack[0]
+	return p.langStack[len(p.langStack)-1]
 }
 
 func (p *Parser) generateBlankNodeID() ntriples.BlankNodeID {
@@ -249,7 +260,6 @@ func (p *Parser) handleGenericStartElem(elem xml.StartElement) (func() error, er
 		p.pushBaseURI(baseIRI)
 	}
 	if lang != nil {
-		glog.Infof("pushing lang %q", *lang)
 		p.pushLang(*lang)
 	}
 	return func() error {
@@ -791,6 +801,7 @@ func readNextChildOfPropertyElement(p *Parser) (*propertyElemParseInfo, error) {
 // fragment identifier to the in-scope base URI. The empty string is transformed
 // into an IRI by substituting the in-scope base URI.
 func resolve(p *Parser, s string) (ntriples.IRI, error) {
+	glog.Infof("resolve(%q) with baseURI %s and stack %+v", s, p.baseURI(), p.baseURIStack)
 	if s == "" {
 		return p.baseURI(), nil
 	}

@@ -115,7 +115,7 @@ func (p *parts) toIRI() IRI {
 		s += "//"
 	}
 	if p.userInfo != "" { // TODO(reddaly): Deal with blank userInfo
-		s += p.userInfo + "@"
+		s += p.userInfo
 	}
 	if p.host != "" {
 		s += p.host
