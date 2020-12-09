@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/golang/glog"
 	"github.com/google/xtoproto/rdf/iri"
 	"github.com/google/xtoproto/rdf/ntriples"
 )
@@ -232,10 +233,12 @@ func (p *Parser) handleGenericStartElem(elem xml.StartElement) (func() error, er
 	var base, lang *string
 	for _, attr := range elem.Attr {
 		if attr.Name.Space == xmlNS && attr.Name.Local == "base" {
-			base = &attr.Value
+			v := attr.Value
+			base = &v
 		}
 		if attr.Name.Space == xmlNS && attr.Name.Local == "lang" {
-			lang = &attr.Value
+			v := attr.Value
+			lang = &v
 		}
 	}
 	if base != nil {
@@ -246,6 +249,7 @@ func (p *Parser) handleGenericStartElem(elem xml.StartElement) (func() error, er
 		p.pushBaseURI(baseIRI)
 	}
 	if lang != nil {
+		glog.Infof("pushing lang %q", *lang)
 		p.pushLang(*lang)
 	}
 	return func() error {
@@ -798,8 +802,11 @@ func resolve(p *Parser, s string) (ntriples.IRI, error) {
 }
 
 func parseLiteral(p *Parser, s string) (ntriples.Literal, error) {
-	// TODO: Use the language of the element if available.
-	return ntriples.NewLiteral(s, ntriples.XMLSchemaString, ""), nil
+	lang := p.language()
+	if lang == "" {
+		return ntriples.NewLiteral(s, ntriples.XMLSchemaString, ""), nil
+	}
+	return ntriples.NewLiteral(s, "", lang), nil
 }
 
 func parseIRI(s string) (ntriples.IRI, error) {
