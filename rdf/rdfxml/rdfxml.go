@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	"github.com/google/xtoproto/rdf/iri"
 	"github.com/google/xtoproto/rdf/ntriples"
 )
 
@@ -698,15 +699,11 @@ func resolve(p *Parser, s string) (ntriples.IRI, error) {
 	if s == "" {
 		return p.baseURI(), nil
 	}
-	asURL, err := url.Parse(s)
+	sIRI, err := iri.Parse(s)
 	if err != nil {
 		return "", fmt.Errorf("error parsing %q as IRI: %w", s, err)
 	}
-	base, err := url.Parse(string(p.baseURI()))
-	if err != nil {
-		return "", fmt.Errorf("error parsing base IRI %q as IRI: %w", p.baseURI(), err)
-	}
-	return ntriples.IRI(base.ResolveReference(asURL).String()), nil
+	return p.baseURI().ResolveReference(sIRI), nil
 }
 
 func parseLiteral(p *Parser, s string) (ntriples.Literal, error) {
@@ -715,11 +712,11 @@ func parseLiteral(p *Parser, s string) (ntriples.Literal, error) {
 }
 
 func parseIRI(s string) (ntriples.IRI, error) {
-	value := ntriples.IRI(s)
-	if err := checkIRI(value); err != nil {
+	unnormalized, err := iri.Parse(s)
+	if err != nil {
 		return "", err
 	}
-	return value, nil
+	return unnormalized.NormalizePercentEncoding(), err
 }
 
 func parseBlankNodeID(s string) (ntriples.BlankNodeID, error) {
@@ -739,11 +736,6 @@ func findAttr(elem xml.StartElement, iri ntriples.IRI) *xml.Attr {
 		}
 	}
 	return nil
-}
-
-func checkIRI(iri ntriples.IRI) error {
-	_, err := url.Parse(string(iri))
-	return err
 }
 
 func readElementContents(p *Parser) ([]byte, error) {

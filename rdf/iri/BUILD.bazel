@@ -1,8 +1,17 @@
-load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "go_default_library",
-    srcs = ["iri.go"],
+    srcs = [
+        "iri.go",
+        "iri_resolve.go",
+    ],
     importpath = "github.com/google/xtoproto/rdf/iri",
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["iri_test.go"],
+    embed = [":go_default_library"],
 )

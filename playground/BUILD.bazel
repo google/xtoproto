@@ -30,10 +30,10 @@ go_binary(
 filegroup(
     name = "playground_files",
     srcs = [
-        ":playground",
         "index.html",
         "prism-theme-dark.css",
         "prism-theme-light.css",
+        ":playground",
         "//third_party:wasm_exec.js",
     ],
     visibility = ["//visibility:public"],

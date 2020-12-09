@@ -6,6 +6,7 @@ go_library(
     importpath = "github.com/google/xtoproto/rdf/rdfxml",
     visibility = ["//visibility:public"],
     deps = [
+        "//rdf/iri:go_default_library",
         "//rdf/ntriples:go_default_library",
         "@com_github_golang_glog//:go_default_library",
     ],

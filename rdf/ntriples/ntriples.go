@@ -511,7 +511,7 @@ func canonicalizeIRILiteral(in string) (string, error) {
 			return "", fmt.Errorf("internal error with string %q - charmatch[%d] = %s", in, i, mustJSONStr(charMatch))
 		}
 	}
-	return canonical.String(), nil
+	return string(iri.IRI(canonical.String()).NormalizePercentEncoding()), nil
 }
 
 func mustJSONStr(thing interface{}) string {
