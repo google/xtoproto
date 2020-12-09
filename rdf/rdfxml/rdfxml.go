@@ -506,15 +506,17 @@ func readPropertyElems(p *Parser, startElemName xml.Name, subject *ntriples.Subj
 // https://www.w3.org/TR/rdf-syntax-grammar/#propertyElt.
 func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subject, propElem xml.StartElement) error {
 	elemURI := xmlNameToIRI(propElem.Name)
-	t := propElem
 	switch elemURI {
 	case RDFLI:
 		elemURI = ntriples.IRI(fmt.Sprintf("%s_%d", string(RDF), *liCounter))
 		*liCounter++
 	}
-	parseTypeAttr := findAttr(t, RDFParseType)
-	if parseTypeAttr != nil {
-		switch parseTypeAttr.Value {
+	parseType, hasParseType, err := processParseTypeAttr(propElem)
+	if err != nil {
+		return p.errorf("bad property element %+v: %w", propElem.Name, err)
+	}
+	if hasParseType {
+		switch parseType {
 		case "Resource":
 			// Section 7.2.18: https://www.w3.org/TR/rdf-syntax-grammar/#parseTypeResourcePropertyElt
 			// n := bnodeid(identifier := generated-blank-node-id()).
@@ -569,7 +571,7 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 		default: // unrecognized parseType is treated as a "Literal" per spec
 			contents, err := readElementContents(p)
 			if err != nil {
-				return p.errorf("failed to get literal contents from parseType=%q: %w", parseTypeAttr.Value, err)
+				return p.errorf("failed to get literal contents from parseType=%q: %w", parseType, err)
 			}
 			literal := ntriples.NewLiteral(string(contents), RDFXMLLiteral, "")
 			triple := ntriples.NewTriple(subject, elemURI, ntriples.NewObjectLiteral(literal))
@@ -1146,6 +1148,31 @@ func parsePropertyAttributes(allAttrs []xml.Attr) (propAttrs, xmlAttrs, idAttrs 
 		return nil, nil, nil, fmt.Errorf("can only have one of rdf:id, rdf:nodeID, rdf:about, got %v", idAttrs)
 	}
 	return
+}
+
+func processParseTypeAttr(propElem xml.StartElement) (string, bool, error) {
+	parseTypeAttr := findAttr(propElem, RDFParseType)
+	if parseTypeAttr == nil {
+		return "", false, nil
+	}
+	// Otherwise, only tolerate the ID attribute and the parseType attribute.
+	var badAttrs []string
+	for _, a := range propElem.Attr {
+		if isXMLAttr(a.Name) {
+			continue
+		}
+		attrIRI := xmlNameToIRI(a.Name)
+		switch attrIRI {
+		case RDFID, RDFParseType:
+			continue
+		default:
+			badAttrs = append(badAttrs, a.Name.Local)
+		}
+	}
+	if len(badAttrs) != 0 {
+		return "", false, fmt.Errorf("property element with parseType attribute cannot have these attributes - see section 7.2.17-7.2.19 of the spec: %s", strings.Join(badAttrs, ", "))
+	}
+	return parseTypeAttr.Value, true, nil
 }
 
 // filterAttrs returns all of the attributes that pass a predicate function
