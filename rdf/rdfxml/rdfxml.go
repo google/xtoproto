@@ -325,8 +325,11 @@ func readNodeElemUsingSubject(p *Parser, start xml.StartElement, forcedSubject *
 
 	subject := forcedSubject
 
-	attrs := rdfAttributes(start.Attr)
-	for _, attr := range attrs {
+	propAttrs, _, idAttrs, err := parsePropertyAttributes(start.Attr)
+	if err != nil {
+		return nil, p.errorf("bad attributes while parsing %+v: %w", start, err)
+	}
+	for _, attr := range idAttrs {
 		switch xmlNameToIRI(attr.Name) {
 		case RDFID:
 			subIRI, err := resolve(p, "#"+attr.Value)
@@ -388,10 +391,8 @@ func readNodeElemUsingSubject(p *Parser, start xml.StartElement, forcedSubject *
 	// string a.string-value should be in Normal Form C [NFC], o :=
 	// literal(literal-value := a.string-value, literal-language := e.language)
 	// and the following statement is added to the graph:
-	for _, attr := range attrs {
+	for _, attr := range propAttrs {
 		switch attrIRI := xmlNameToIRI(attr.Name); attrIRI {
-		case RDFID, RDFNodeID, RDFAbout:
-			// already handled above
 		case RDFType:
 			objectIRI, err := resolve(p, attr.Value)
 			if err != nil {
@@ -1078,6 +1079,34 @@ func rdfAttributes(attrs []xml.Attr) []xml.Attr {
 	})
 }
 
+func parsePropertyAttributes(allAttrs []xml.Attr) (propAttrs, xmlAttrs, idAttrs []xml.Attr, err error) {
+	var badTerms []string
+	for _, a := range allAttrs {
+		if isXMLAttr(a.Name) {
+			xmlAttrs = append(xmlAttrs, a)
+			continue
+		}
+		uri := xmlNameToIRI(a.Name)
+		switch uri {
+		case RDFID, RDFNodeID, RDFAbout:
+			idAttrs = append(idAttrs, a)
+			continue
+		}
+		if isPropertyAttr(a.Name) {
+			propAttrs = append(propAttrs, a)
+			continue
+		}
+		badTerms = append(badTerms, a.Name.Local)
+	}
+	if len(badTerms) != 0 {
+		return nil, nil, nil, fmt.Errorf("got %d bad attributes: %s", len(badTerms), strings.Join(badTerms, ", "))
+	}
+	if len(idAttrs) > 1 {
+		return nil, nil, nil, fmt.Errorf("can only have one of rdf:id, rdf:nodeID, rdf:about, got %v", idAttrs)
+	}
+	return
+}
+
 // filterAttrs returns all of the attributes that pass a predicate function
 func filterAttrs(attrs []xml.Attr, pred func(xml.Attr) bool) []xml.Attr {
 	var out []xml.Attr
@@ -1100,7 +1129,12 @@ func isXMLAttr(name xml.Name) bool {
 
 func isPropertyAttr(name xml.Name) bool {
 	term := xmlNameToIRI(name)
-	return !coreSyntaxTerms[term] && !oldTerms[term]
+	switch term {
+	case RDFDescription, RDFLI:
+		return false
+	default:
+		return !coreSyntaxTerms[term] && !oldTerms[term]
+	}
 }
 
 var coreSyntaxTerms = map[ntriples.IRI]bool{
