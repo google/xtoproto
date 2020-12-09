@@ -745,7 +745,11 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 
 	// 7.2.16 Production literalPropertyElt
 	var literal ntriples.Literal
-	if dtAttr := findAttr(propElem, RDFDatatype); dtAttr != nil {
+	idAttr, dtAttr, err := parseLiteralPropertyElementAttributes(propElem.Attr)
+	if err != nil {
+		return p.errorf("bad literalPropertyElt: %w", err)
+	}
+	if dtAttr != nil {
 		datatype, err := parseIRI(dtAttr.Value)
 		if err != nil {
 			return err
@@ -765,8 +769,8 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 	if ind == Stop {
 		return nil
 	}
-	if attr := findAttr(propElem, RDFID); attr != nil {
-		i, err := resolve(p, "#"+attr.Value)
+	if idAttr != nil {
+		i, err := resolve(p, "#"+idAttr.Value)
 		if err != nil {
 			return err
 		}
@@ -1173,6 +1177,29 @@ func processParseTypeAttr(propElem xml.StartElement) (string, bool, error) {
 		return "", false, fmt.Errorf("property element with parseType attribute cannot have these attributes - see section 7.2.17-7.2.19 of the spec: %s", strings.Join(badAttrs, ", "))
 	}
 	return parseTypeAttr.Value, true, nil
+}
+
+func parseLiteralPropertyElementAttributes(allAttrs []xml.Attr) (id, datatype *xml.Attr, err error) {
+	var badTerms []string
+	for _, a := range allAttrs {
+		a := a
+		if isXMLAttr(a.Name) {
+			continue
+		}
+		uri := xmlNameToIRI(a.Name)
+		switch uri {
+		case RDFID:
+			id = &a
+		case RDFDatatype:
+			datatype = &a
+		default:
+			badTerms = append(badTerms, a.Name.Local)
+		}
+	}
+	if len(badTerms) != 0 {
+		return nil, nil, fmt.Errorf("got %d extra attributes in literal property element: %s", len(badTerms), strings.Join(badTerms, ", "))
+	}
+	return
 }
 
 // filterAttrs returns all of the attributes that pass a predicate function
