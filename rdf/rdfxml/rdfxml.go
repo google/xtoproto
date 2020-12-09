@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"net/url"
 	"regexp"
 	"strings"
 
@@ -206,10 +205,11 @@ func (p *Parser) handleGenericStartElem(elem xml.StartElement) (func() error, er
 		}
 	}
 	if base != nil {
-		if _, err := url.Parse(*base); err != nil {
+		baseIRI, err := parseIRI(*base)
+		if err != nil {
 			return nil, p.errorf("xml:base value invalid: %w", err)
 		}
-		p.pushBaseURI(ntriples.IRI(*base))
+		p.pushBaseURI(baseIRI)
 	}
 	if lang != nil {
 		p.pushLang(*lang)
@@ -703,7 +703,7 @@ func resolve(p *Parser, s string) (ntriples.IRI, error) {
 	if err != nil {
 		return "", fmt.Errorf("error parsing %q as IRI: %w", s, err)
 	}
-	return p.baseURI().ResolveReference(sIRI), nil
+	return p.baseURI().ResolveReference(sIRI).NormalizePercentEncoding(), nil
 }
 
 func parseLiteral(p *Parser, s string) (ntriples.Literal, error) {

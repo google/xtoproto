@@ -105,7 +105,6 @@ func TestParseIRIRef(t *testing.T) {
 
 func TestCanonicalizeIRILiteral(t *testing.T) {
 	tests := []struct {
-		t       *Triple
 		in      string
 		want    string
 		wantErr bool
@@ -121,6 +120,18 @@ func TestCanonicalizeIRILiteral(t *testing.T) {
 		{
 			in:   `http://r&#xE9;sum&#xE9;.example.org`,
 			want: "http://r&#xE9;sum&#xE9;.example.org",
+		},
+		{
+			in:   `http://r&#xE9;sum&#xE9;.example.org`,
+			want: "http://r&#xE9;sum&#xE9;.example.org",
+		},
+		{
+			in:   `http://example.org/#André`,
+			want: `http://example.org/#André`,
+		},
+		{
+			in:   `http://example.org/#Andr\u00E9`,
+			want: `http://example.org/#André`,
 		},
 	}
 	for _, tt := range tests {

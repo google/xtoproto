@@ -31,19 +31,19 @@ func Parse(s string) (IRI, error) {
 	path := match[uriREPathGroup]
 	query := match[uriREQueryGroup]
 	fragment := match[uriREFragmentGroup]
-	if !schemeRE.MatchString(scheme) {
+	if scheme != "" && !schemeRE.MatchString(scheme) {
 		return "", fmt.Errorf("%q is not a valid IRI: invalid scheme %q does not match regexp %s", s, scheme, schemeRE)
 	}
-	if !iauthorityRE.MatchString(auth) {
+	if auth != "" && !iauthorityRE.MatchString(auth) {
 		return "", fmt.Errorf("%q is not a valid IRI: invalid auth %q does not match regexp %s", s, auth, iauthorityRE)
 	}
-	if !ipathRE.MatchString(path) {
+	if path != "" && !ipathRE.MatchString(path) {
 		return "", fmt.Errorf("%q is not a valid IRI: invalid path %q does not match regexp %s", s, path, ipathRE)
 	}
-	if !iqueryRE.MatchString(query) {
+	if query != "" && !iqueryRE.MatchString(query) {
 		return "", fmt.Errorf("%q is not a valid IRI: invalid query %q does not match regexp %s", s, query, iqueryRE)
 	}
-	if !ifragmentRE.MatchString(fragment) {
+	if fragment != "" && !ifragmentRE.MatchString(fragment) {
 		return "", fmt.Errorf("%q is not a valid IRI: invalid fragment %q does not match regexp %s", s, fragment, ifragmentRE)
 	}
 	return IRI(s), nil
@@ -82,26 +82,28 @@ func (iri IRI) parts() *parts {
 		port = authMatch[iauthorityPortGroup]
 	}
 	return &parts{
-		scheme:   match[uriRESchemeGroup],
-		auth:     auth,
-		userInfo: userInfo,
-		host:     host,
-		port:     port,
-		path:     match[uriREPathGroup],
-		query:    match[uriREQueryGroup],
-		fragment: match[uriREFragmentGroup],
+		scheme:        match[uriRESchemeGroup],
+		emptyAuth:     len(match[uriREAuthorityWithSlashSlahGroup]) != 0 && (userInfo == "" && host == "" && port == ""),
+		userInfo:      userInfo,
+		host:          host,
+		port:          port,
+		path:          match[uriREPathGroup],
+		query:         match[uriREQueryWithMarkGroup],
+		fragment:      match[uriREFragmentGroup],
+		emptyFragment: match[uriREFragmentWithHashGroup] != "",
 	}
 }
 
 type parts struct {
-	scheme   string
-	auth     string
-	userInfo string
-	host     string
-	port     string
-	path     string
-	query    string
-	fragment string
+	scheme        string
+	emptyAuth     bool // true if the iri is something like `///path` but if iri is `//hostname/path`
+	userInfo      string
+	host          string
+	port          string
+	path          string
+	query         string // with the ?
+	emptyFragment bool
+	fragment      string
 }
 
 func (p *parts) toIRI() IRI {
@@ -109,14 +111,18 @@ func (p *parts) toIRI() IRI {
 	if p.scheme != "" {
 		s += p.scheme + ":"
 	}
+	if p.emptyAuth || p.userInfo != "" || p.host != "" || p.port != "" {
+		s += "//"
+	}
 	if p.userInfo != "" { // TODO(reddaly): Deal with blank userInfo
 		s += p.userInfo + "@"
 	}
 	if p.host != "" {
 		s += p.host
 	}
+
 	if p.port != "" { // TODO(reddaly): Deal with blank
-		s += p.port + ":"
+		s += ":" + p.port
 	}
 	if p.path != "" { // TODO(reddaly): Deal with blank
 		s += p.path
@@ -124,8 +130,10 @@ func (p *parts) toIRI() IRI {
 	if p.query != "" { // TODO(reddaly): Deal with blank
 		s += p.query
 	}
-	if p.fragment != "" { // TODO(reddaly): Deal with blank
+	if p.fragment != "" {
 		s += "#" + p.fragment
+	} else if p.emptyFragment {
+		s += "#"
 	}
 	return IRI(s)
 }
@@ -257,12 +265,15 @@ var (
 	}()
 
 	// re from RFC 3986 page 50.
-	uriRE               = mustCompileNamed("uriRE", `^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?`)
-	uriRESchemeGroup    = 2
-	uriREAuthorityGroup = 4
-	uriREPathGroup      = 5
-	uriREQueryGroup     = 7
-	uriREFragmentGroup  = 9
+	uriRE                            = mustCompileNamed("uriRE", `^(([^:/?#]+):)?(//([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?`)
+	uriRESchemeGroup                 = 2
+	uriREAuthorityWithSlashSlahGroup = 3
+	uriREAuthorityGroup              = 4
+	uriREPathGroup                   = 5
+	uriREQueryWithMarkGroup          = 6
+	uriREQueryGroup                  = 7
+	uriREFragmentGroup               = 9
+	uriREFragmentWithHashGroup       = 8
 )
 
 // NormalizePercentEncoding returns an IRI that replaces any unnecessarily

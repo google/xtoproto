@@ -35,9 +35,9 @@ package iri
 
 import "strings"
 
-// Auth returns the auth part of the IRI.
-func (p *parts) Auth() string {
-	return p.auth
+// HasAuthority returns the auth part of the IRI.
+func (p *parts) HasAuthority() bool {
+	return p.emptyAuth || p.host != "" || p.port != "" || p.userInfo != ""
 }
 
 // Scheme returns the scheme part of the IRI.
@@ -66,34 +66,42 @@ func (p *parts) Path() string {
 }
 
 // Query returns the query part of the IRI.
-func (p *parts) Query() string {
-	return p.query
+func (p *parts) Query() *string {
+	if p.query != "" {
+		s := p.query[1:]
+		return &s
+	}
+	return nil
 }
 
 // Fragment returns the fragment part of the IRI.
-func (p *parts) Fragment() string {
-	return p.fragment
+func (p *parts) Fragment() (string, bool) {
+	return p.fragment, p.emptyFragment || p.fragment != ""
 }
 
 type resolveRefArg interface {
-	Auth() string
+	HasAuthority() bool
 	Scheme() string
 	Host() string
 	User() string
 	Port() string
 	Path() string
-	Query() string
-	Fragment() string
+	Query() *string
+	Fragment() (string, bool)
 }
 
 func resolveReference(base, ref resolveRefArg) *parts {
+	refFrag, refHasFrag := ref.Fragment()
 	url := &parts{
-		scheme:   base.Scheme(),
-		auth:     base.Auth(),
-		host:     base.Host(),
-		userInfo: base.User(),
-		port:     base.Port(),
-		path:     base.Path(),
+		scheme:        ref.Scheme(),
+		emptyAuth:     ref.HasAuthority() && ref.Host() == "" && ref.Port() == "" && ref.User() == "",
+		host:          ref.Host(),
+		userInfo:      ref.User(),
+		port:          ref.Port(),
+		path:          ref.Path(),
+		fragment:      refFrag,
+		emptyFragment: refFrag == "" && refHasFrag,
+		query:         formattedQuery(ref.Query()),
 	}
 	if ref.Scheme() == "" {
 		url.scheme = base.Scheme()
@@ -112,10 +120,13 @@ func resolveReference(base, ref resolveRefArg) *parts {
 	// 	url.Path = ""
 	// 	return url
 	// }
-	if ref.Path() == "" && ref.Query() == "" {
-		url.query = base.Query()
-		if ref.Fragment() == "" {
-			url.fragment = base.Fragment()
+	if ref.Path() == "" && ref.Query() == nil {
+		url.query = formattedQuery(base.Query())
+
+		if !refHasFrag {
+			baseFrag, baseHasFrag := base.Fragment()
+			url.fragment = baseFrag
+			url.emptyFragment = baseFrag == "" && baseHasFrag
 		}
 	}
 	// The "abs_path" or "rel_path" cases.
@@ -123,6 +134,13 @@ func resolveReference(base, ref resolveRefArg) *parts {
 	url.userInfo = base.User()
 	url.path = resolvePath(base.Path(), ref.Path())
 	return url
+}
+
+func formattedQuery(q *string) string {
+	if q == nil {
+		return ""
+	}
+	return "?" + *q
 }
 
 // resolvePath applies special path segments from refs and applies
