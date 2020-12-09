@@ -26,6 +26,9 @@ type NegativeParserCase struct {
 
 	// DocumentURL is the base url to use for the document.
 	DocumentURL string
+
+	// Description describes the test case.
+	Description string
 }
 
 // Positives contains 128 valid examples of RDF/XML.
@@ -805,166 +808,207 @@ var Negatives = []NegativeParserCase{
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdf-containers-syntax-vs-schema/Manifest.rdf#error001",
     InputXML:       "<?xml version=\"1.0\"?>\r\n<!-- \tIssue: rdf-containers-syntax-vs-schema\r\n        Test:  error01\r\n        $Header: /w3ccvs/WWW/2000/10/rdf-tests/rdfcore/rdf-containers-syntax-vs-schema/error001.rdf,v 1.6 2001/09/06 21:23:35 barstow Exp $\r\n\r\n        rdf:li is not allowed as as an attribute\r\n-->\r\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  $Id: error001.rdf,v 1.6 2001/09/06 21:23:35 barstow Exp $\n-->\n\r\n\r\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\r\n         xmlns:foo=\"http://foo/\">\r\n\r\n  <foo:bar rdf:li=\"1\"/>\r\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdf-containers-syntax-vs-schema/Manifest.rdf#error002",
     InputXML:       "<?xml version=\"1.0\"?>\n<!-- \tIssue: rdf-containers-syntax-vs-schema\n        Test:  error002\n        $Header: /w3ccvs/WWW/2000/10/rdf-tests/rdfcore/rdf-containers-syntax-vs-schema/error002.rdf,v 1.4 2001/12/20 22:10:28 bmcbride Exp $\n\n        rdf:li elements as typed nodes - a bizarre case\nAs specified in\n\n  http://lists.w3.org/Archives/Public/w3c-rdfcore-wg/2001Nov/0651.html\n\nis now an error.\n-->\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  $Id: error002.rdf,v 1.4 2001/12/20 22:10:28 bmcbride Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:foo=\"http://foo/\">\n  <rdf:li/>\n</rdf:RDF>\n\n\n\n\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-abouteach/Manifest.rdf#error001",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue: http://www.w3.org/2000/03/rdf-tracking/#rdfms-abouteach\n  Test:  1 (error)\n  Author: Dave Beckett\n\n    aboutEach removed from the RDF specifications.\n    See URI above for further details.\n\n\n  $Id: error001.rdf,v 1.1 2002/04/05 23:01:15 dajobe Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n  <rdf:Bag rdf:ID=\"node\">\n    <rdf:li rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Bag>\n\n  <rdf:Description rdf:aboutEach=\"#node\">\n    <dc:rights xmlns:dc=\"http://purl.org/dc/elements/1.1/\">me</dc:rights>\n  </rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-abouteach/Manifest.rdf#error002",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue: http://www.w3.org/2000/03/rdf-tracking/#rdfms-abouteach\n  Test:  2 (error)\n  Author: Dave Beckett\n\n    aboutEachPrefix removed from the RDF specifications.\n    See URI above for further details.\n\n\n  $Id: error002.rdf,v 1.1 2002/04/05 23:01:15 dajobe Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n  <rdf:Description rdf:about=\"http://example.org/node\">\n    <eg:property>foo</eg:property>\n  </rdf:Description>\n\n  <rdf:Description rdf:aboutEachPrefix=\"http://example.org/\">\n    <dc:creator xmlns:dc=\"http://purl.org/dc/elements/1.1/\">me</dc:creator>\n  </rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-difference-between-ID-and-about/Manifest.rdf#error1",
     InputXML:       "<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  $Id: error1.rdf,v 1.2 2001/09/06 21:23:35 barstow Exp $\n-->\n<!-- \nBase URI: http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-difference-between-ID-and-about/error1.rdf\n\nThis is illegal RDF: two elements cannot use the same ID. \n-->\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n<rdf:Description rdf:ID=\"foo\">\n  <rdf:value>abc</rdf:value>\n</rdf:Description>\n<rdf:Description rdf:ID=\"foo\">\n  <rdf:value>abc</rdf:value>\n</rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-empty-property-elements/Manifest.rdf#error001",
     InputXML:       "<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  $Id: error001.rdf,v 1.1 2001/09/10 14:31:48 barstow Exp $\n-->\n<!--\n\n Assumed base URI:\n\nhttp://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-empty-property-elements/error001.nrdf\n\n Description:\n\n This is not legal RDF; specifying an rdf:parseType of \"Literal\" and an\n rdf:resource attribute at the same time is an error.\n\n-->\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n  xmlns:random=\"http://random.ioctl.org/#\">\n\n<rdf:Description rdf:about=\"http://random.ioctl.org/#bar\">\n  <random:someProperty rdf:parseType=\"Literal\"\n    rdf:resource=\"http://random.ioctl.org/#foo\" />\n</rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-empty-property-elements/Manifest.rdf#error002",
     InputXML:       "<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  $Id: error002.rdf,v 1.1 2001/09/10 14:33:09 barstow Exp $\n-->\n<!--\n\n Assumed base URI:\n\nhttp://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-empty-property-elements/error002.nrdf\n\n Description:\n\n This is not legal RDF; specifying an rdf:parseType of \"Literal\" and an\n rdf:resource attribute at the same time is an error.\n\n-->\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n  xmlns:random=\"http://random.ioctl.org/#\">\n\n<rdf:Description rdf:about=\"http://random.ioctl.org/#bar\">\n  <random:someProperty rdf:parseType=\"Literal\"\n    rdf:resource=\"http://random.ioctl.org/#foo\"></random:someProperty>\n</rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-empty-property-elements/Manifest.rdf#error003",
     InputXML:       "<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  $Id: error003.rdf,v 1.1 2001/09/10 14:33:52 barstow Exp $\n-->\n<!--\n\n Assumed base URI:\n\nhttp://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-empty-property-elements/error003.nrdf\n\n Description:\n\n This is not legal RDF.\n From the original RDFMS document, paragraphs 229-234 and production [6.12],\n last clause: rdf:parseType=\"Literal\" is forbidden here since we're\n creating an additional resource node.\n\n See\nhttp://lists.w3.org/Archives/Public/www-archive/2001Jun/att-0021/00-part#229\n for details.\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n  xmlns:random=\"http://random.ioctl.org/#\">\n \n<rdf:Description rdf:about=\"http://random.ioctl.org/#bar\">\n  <random:someProperty random:prop2=\"baz\" rdf:parseType=\"Literal\" />\n</rdf:Description>\n</rdf:RDF>\n \n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-id/Manifest.rdf#error001",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:ID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error001.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\n <rdf:Description rdf:ID='333-555-666' />\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:ID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-id/Manifest.rdf#error002",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:ID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error002.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\n <rdf:Description rdf:ID=\"_:xx\" />\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:ID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-id/Manifest.rdf#error003",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:ID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error003.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n <rdf:Description>\n   <eg:prop rdf:ID=\"q:name\" />\n </rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:ID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-id/Manifest.rdf#error004",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:ID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error004.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n <rdf:Description rdf:ID=\"a/b\" eg:prop=\"val\" />\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:ID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-id/Manifest.rdf#error005",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:ID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error005.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n <!-- &#x301; is a non-spacing acute accent.\n      It is legal within an XML Name, but not as the first\n      character.     -->\n\n <rdf:Description rdf:ID=\"&#x301;bb\" eg:prop=\"val\" />\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:ID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-id/Manifest.rdf#error006",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:bagID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error006.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\n <rdf:Description rdf:bagID='333-555-666' />\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:bagID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-id/Manifest.rdf#error007",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:bagID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error007.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n <rdf:Description>\n   <eg:prop rdf:bagID=\"q:name\" />\n </rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:bagID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-001",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    RDF is forbidden as a node element name.\n\n  $Id: error-001.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:RDF/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-002",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    ID is forbidden as a node element name.\n\n  $Id: error-002.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:ID/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-003",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    about is forbidden as a node element name.\n\n  $Id: error-003.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:about/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-004",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    bagID is forbidden as a node element name.\n\n  $Id: error-004.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:bagID/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-005",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    parseType is forbidden as a node element name.\n\n  $Id: error-005.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:parseType/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-006",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    resource is forbidden as a node element name.\n\n  $Id: error-006.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:resource/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-007",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    nodeID is forbidden as a node element name.\n\n  $Id: error-007.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:nodeID/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-008",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    li is forbidden as a node element name.\n\n  $Id: error-008.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:li/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-009",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    aboutEach is forbidden as a node element name.\n\n  $Id: error-009.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:aboutEach/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-010",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    aboutEachPrefix is forbidden as a node element name.\n\n  $Id: error-010.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:aboutEachPrefix/>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-011",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    Description is forbidden as a property element name.\n\n  $Id: error-011.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:Description rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-012",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    RDF is forbidden as a property element name.\n\n  $Id: error-012.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:RDF rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-013",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    ID is forbidden as a property element name.\n\n  $Id: error-013.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:ID rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-014",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    about is forbidden as a property element name.\n\n  $Id: error-014.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:about rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-015",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    bagID is forbidden as a property element name.\n\n  $Id: error-015.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:bagID rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-016",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    parseType is forbidden as a property element name.\n\n  $Id: error-016.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:parseType rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-017",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    resource is forbidden as a property element name.\n\n  $Id: error-017.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:resource rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-018",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    nodeID is forbidden as a property element name.\n\n  $Id: error-018.rdf,v 1.2 2002/08/07 13:17:48 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:nodeID rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-019",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    aboutEach is forbidden as a property element name.\n\n  $Id: error-019.rdf,v 1.2 2002/08/07 13:17:49 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:aboutEach rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-rdf-names-use/Manifest.rdf#error-020",
     InputXML:       "<?xml version=\"1.0\"?>\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n  Issue http://www.w3.org/2000/03/rdf-tracking/#rdfms-rdf-names-use\n    Illegal or unusual use of names from the RDF namespace\n\n  Description: \n    aboutEachPrefix is forbidden as a property element name.\n\n  $Id: error-020.rdf,v 1.2 2002/08/07 13:17:49 dbeckett2 Exp $\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n  <rdf:Description rdf:about=\"http://example.org/node1\">\n    <rdf:aboutEachPrefix rdf:resource=\"http://example.org/node2\"/>\n  </rdf:Description>\n</rdf:RDF>\n",
+    Description:    "",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-syntax-incomplete/Manifest.rdf#error001",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:nodeID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error001.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\n <rdf:Description rdf:nodeID='333-555-666' />\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:nodeID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-syntax-incomplete/Manifest.rdf#error002",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:nodeID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error002.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\n <rdf:Description rdf:nodeID=\"_:bnode\" />\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:nodeID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-syntax-incomplete/Manifest.rdf#error003",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  The value of rdf:nodeID must match the XML Name production,\n  (as modified by XML Namespaces). \n  $Id: error003.rdf,v 1.1 2002/07/30 09:45:51 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n <rdf:Description>\n   <eg:prop rdf:nodeID=\"q:name\" />\n </rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "\n\t  The value of rdf:nodeID must match the XML Name production,\n        (as modified by XML Namespaces). \n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-syntax-incomplete/Manifest.rdf#error004",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  Cannot have rdf:nodeID and rdf:ID.\n  $Id: error004.rdf,v 1.1 2002/08/03 05:32:32 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\n <rdf:Description rdf:nodeID='a' rdf:ID='b'/>\n\n</rdf:RDF>\n",
+    Description:    "\n\t  Cannot have rdf:nodeID and rdf:ID.\n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-syntax-incomplete/Manifest.rdf#error005",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  Cannot have rdf:nodeID and rdf:about\n  $Id: error005.rdf,v 1.1 2002/08/03 05:32:32 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n\n <rdf:Description rdf:nodeID=\"a\" rdf:about=\"http://example.org/\"/>\n\n</rdf:RDF>\n",
+    Description:    "\n\t  Cannot have rdf:nodeID and rdf:about.\n   ",
   },
   {
     Name:           "http://www.w3.org/2000/10/rdf-tests/rdfcore/rdfms-syntax-incomplete/Manifest.rdf#error006",
     InputXML:       "<?xml version=\"1.0\"?>\n\n<!--\n  Copyright World Wide Web Consortium, (Massachusetts Institute of\n  Technology, Institut National de Recherche en Informatique et en\n  Automatique, Keio University).\n \n  All Rights Reserved.\n \n  Please see the full Copyright clause at\n  <http://www.w3.org/Consortium/Legal/copyright-software.html>\n\n-->\n<!--\n\n  Cannot have rdf:nodeID and rdf:resource.\n  $Id: error006.rdf,v 1.1 2002/08/03 05:32:31 jcarroll Exp $\n\n-->\n\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"\n         xmlns:eg=\"http://example.org/\">\n\n <rdf:Description>\n   <eg:prop rdf:nodeID=\"a\" rdf:resource=\"http://www.example.org/\" />\n </rdf:Description>\n\n</rdf:RDF>\n",
+    Description:    "\n\t  Cannot have rdf:nodeID and rdf:resource.\n   ",
   },
 }
 
