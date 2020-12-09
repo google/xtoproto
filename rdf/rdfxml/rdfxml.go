@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/google/xtoproto/rdf/iri"
 	"github.com/google/xtoproto/rdf/ntriples"
 )
@@ -56,6 +55,10 @@ const (
 // readTriples decodes triples from an XML token stream.
 func readTriples(p *Parser, receiver func(t *ntriples.Triple) (IterationDecision, error)) error {
 	p.tripleCallback = receiver
+	return readRootOrNodeElem(p)
+}
+
+func readRootOrNodeElem(p *Parser) error {
 	started, finished := false, false
 	for {
 		tok, err := p.reader.Token()
@@ -70,30 +73,61 @@ func readTriples(p *Parser, receiver func(t *ntriples.Triple) (IterationDecision
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
+			if started {
+				return p.errorf("internal error? got second start element at root level %+v", t)
+			}
+			started = true
+
 			if xmlNameToIRI(t.Name) == RDFRoot {
-				if started {
-					return p.errorf("got second RDF root element: %+v", t)
-				}
-				started = true
 				_, err := p.handleGenericStartElem(t)
 				if err != nil {
 					return err
 				}
-				continue
+				return readNodeElemsAndEndRootElement(p)
 			}
-			if !started {
-				return p.errorf("want root element rdf:RDF, got %+v", t.Name)
+			// Otherwise, treat this like reading a regular node element.
+			// See https://www.w3.org/TR/rdf-syntax-grammar/#nodeElement.
+			_, err := readNodeElem(p, t)
+			return err
+		case xml.EndElement:
+			if xmlNameToIRI(t.Name) != RDFRoot {
+				return p.errorf("internal parsing error - only expect an end element when handlng rdf:Root; probably forgot to consume an EndElement elsewhere: %+v", t)
 			}
+			finished = true
+			// end elements should be consumed
+		case xml.CharData:
+			str := string(t)
+			if strings.TrimSpace(str) != "" {
+				return p.errorf("unexpected non-whitespace element text %q", str)
+			}
+		case xml.Comment: // ignore
+		case xml.ProcInst: // ignore
+		case xml.Directive: // ignore
+		}
+	}
+}
+
+func readNodeElemsAndEndRootElement(p *Parser) error {
+	for {
+		tok, err := p.reader.Token()
+		if err == io.EOF {
+			return fmt.Errorf("unexpected end of file while parsing rdf:Root")
+		}
+		if err != nil {
+			return fmt.Errorf("XML error while parsing rdf:Root: %v", err)
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			// Otherwise, treat this like reading a regular node element.
 			// See https://www.w3.org/TR/rdf-syntax-grammar/#nodeElement.
 			if _, err := readNodeElem(p, t); err != nil {
 				return err
 			}
 		case xml.EndElement:
 			if xmlNameToIRI(t.Name) != RDFRoot {
-				return p.errorf("internal xml parsing error - should have consumed EndElement elsewhere: %+v", t)
+				return p.errorf("internal parsing error - only expect an end element when handlng rdf:Root; probably forgot to consume an EndElement elsewhere: %+v", t)
 			}
-			finished = true
-			// end elements should be consumed
+			return nil
 		case xml.CharData:
 			str := string(t)
 			if strings.TrimSpace(str) != "" {
@@ -246,7 +280,8 @@ func readNodeElem(p *Parser, start xml.StartElement) (*ntriples.Subject, error) 
 	// generated-blank-node-id()).
 	var subject *ntriples.Subject
 
-	for _, attr := range rdfAttributes(start.Attr) {
+	attrs := rdfAttributes(start.Attr)
+	for _, attr := range attrs {
 		switch xmlNameToIRI(attr.Name) {
 		case RDFID:
 			subIRI, err := resolve(p, "#"+attr.Value)
@@ -304,8 +339,8 @@ func readNodeElem(p *Parser, start xml.StartElement) (*ntriples.Subject, error) 
 	// string a.string-value should be in Normal Form C [NFC], o :=
 	// literal(literal-value := a.string-value, literal-language := e.language)
 	// and the following statement is added to the graph:
-	for _, attr := range start.Attr {
-		switch xmlNameToIRI(attr.Name) {
+	for _, attr := range attrs {
+		switch attrIRI := xmlNameToIRI(attr.Name); attrIRI {
 		case RDFID, RDFNodeID, RDFAbout:
 			// already handled above
 		case RDFType:
@@ -326,7 +361,7 @@ func readNodeElem(p *Parser, start xml.StartElement) (*ntriples.Subject, error) 
 			if err != nil {
 				return nil, p.errorf("bad literal for attribute %+v: %w", attr, err)
 			}
-			triple := ntriples.NewTriple(subject, RDFType, ntriples.NewObjectLiteral(objectLiteral))
+			triple := ntriples.NewTriple(subject, attrIRI, ntriples.NewObjectLiteral(objectLiteral))
 			ind, err := p.tripleCallback(triple)
 			if err != nil {
 				return nil, p.errorf("triple callback error: %w", err)
@@ -365,7 +400,7 @@ func readPropertyElems(p *Parser, startElemName xml.Name, subject *ntriples.Subj
 			}
 		case xml.EndElement:
 			if t.Name != startElemName {
-				return p.errorf("unexpected end element while reading property elements of of %s %+v", subject, t.Name)
+				return p.errorf("unexpected end element while reading property elements of %+v (%s): got unexpected end element %+v", startElemName, subject, t.Name)
 			}
 			return nil
 		case xml.CharData:
@@ -378,11 +413,7 @@ func readPropertyElems(p *Parser, startElemName xml.Name, subject *ntriples.Subj
 
 // readPropertyElems parses the property elements of a nodeElem per
 // https://www.w3.org/TR/rdf-syntax-grammar/#propertyElt.
-func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, propElem xml.StartElement) error {
-	handleCloseElem, err := p.handleGenericStartElem(propElem)
-	if err != nil {
-		return err
-	}
+func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subject, propElem xml.StartElement) error {
 	elemURI := xmlNameToIRI(propElem.Name)
 	t := propElem
 	switch elemURI {
@@ -399,15 +430,12 @@ func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, prop
 			return p.errorf("unsupported parseType Collection")
 		case "Literal":
 			fallthrough
-		default:
+		default: // unrecognized parseType is treated as a "Literal" per spec
 			contents, err := readElementContents(p)
 			if err != nil {
 				return p.errorf("failed to get literal contents from parseType=%q: %w", parseTypeAttr.Value, err)
 			}
-			literal, err := parseLiteral(p, string(contents))
-			if err != nil {
-				return err
-			}
+			literal := ntriples.NewLiteral(string(contents), RDFXMLLiteral, "")
 			triple := ntriples.NewTriple(subject, elemURI, ntriples.NewObjectLiteral(literal))
 			ind, err := p.tripleCallback(triple)
 			if err != nil {
@@ -416,18 +444,33 @@ func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, prop
 			if ind == Stop {
 				return nil
 			}
+			if attr := findAttr(propElem, RDFID); attr != nil {
+				i, err := resolve(p, "#"+attr.Value)
+				if err != nil {
+					return err
+				}
+				ind, err := emitReifiedTriple(p, triple, ntriples.NewSubjectIRI(i))
+				if err != nil {
+					return p.errorf("triple callback error: %w", err)
+				}
+				if ind == Stop {
+					return nil
+				}
+			}
 		}
+		return nil
 	}
 	childInfo, err := readNextChildOfPropertyElement(p)
 	if err != nil {
 		return err
 	}
 	if childInfo.nodeElemStart != nil {
+		// 7.2.15: Production resourcePropertyElt
 		valueSubject, err := readNodeElem(p, *childInfo.nodeElemStart)
 		if err != nil {
 			return p.errorf("failed to parse resourcePropertyElt %s property of %s: %w", xmlNameToIRI(childInfo.nodeElemStart.Name), subject, err)
 		}
-		if err := readWhitespaceUntilEndElem(p); err != nil {
+		if err := readWhitespaceUntilEndElem(p, &propElem); err != nil {
 			return p.errorf("failed to parse resourcePropertyElt %s property of %s: %w", xmlNameToIRI(childInfo.nodeElemStart.Name), subject, err)
 		}
 		// e.parent.subject.string-value e.URI-string-value n.subject.string-value .
@@ -458,8 +501,11 @@ func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, prop
 				return nil
 			}
 		}
+		return nil
+	}
 
-	} else if childInfo.isEmptyProperty {
+	if childInfo.isEmptyProperty {
+		// 7.2.21 Production emptyPropertyElt
 		attrs := rdfAttributes(propElem.Attr)
 		if len(attrs) == 0 || (len(attrs) == 1 && xmlNameToIRI(attrs[0].Name) == RDFID) {
 			// If there are no attributes or only the optional rdf:ID attribute i then
@@ -503,7 +549,7 @@ func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, prop
 				return err
 			}
 			for _, propAttr := range filterAttrs(attrs, func(a xml.Attr) bool {
-				return true
+				return isPropertyAttr(a.Name)
 			}) {
 				var triple1 *ntriples.Triple
 				propAsIRI := xmlNameToIRI(propAttr.Name)
@@ -527,9 +573,27 @@ func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, prop
 				if ind == Stop {
 					return nil
 				}
+			}
 
-				triple2 := ntriples.NewTriple(subject, elemURI, ntriples.NewObjectFromSubject(r))
-				ind, err = p.tripleCallback(triple2)
+			triple := ntriples.NewTriple(subject, elemURI, ntriples.NewObjectFromSubject(r))
+			ind, err := p.tripleCallback(triple)
+			if err != nil {
+				return p.errorf("triple callback error: %w", err)
+			}
+			if ind == Stop {
+				return nil
+			}
+			// Reification. 7.2.21: If rdf:ID attribute i is given, the
+			// above statement is reified with uri(identifier := resolve(e,
+			// concat("#", i.string-value))) using the reification rules in section
+			// 7.3.
+
+			if attr := findAttr(propElem, RDFID); attr != nil {
+				i, err := resolve(p, "#"+attr.Value)
+				if err != nil {
+					return err
+				}
+				ind, err := emitReifiedTriple(p, triple, ntriples.NewSubjectIRI(i))
 				if err != nil {
 					return p.errorf("triple callback error: %w", err)
 				}
@@ -537,37 +601,64 @@ func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, prop
 					return nil
 				}
 			}
-			// TODO(reddaly): Reification.
 		}
+		return nil
+	}
+
+	// 7.2.16 Production literalPropertyElt
+	var literal ntriples.Literal
+	if dtAttr := findAttr(propElem, RDFDatatype); dtAttr != nil {
+		datatype, err := parseIRI(dtAttr.Value)
+		if err != nil {
+			return err
+		}
+		literal = ntriples.NewLiteral(childInfo.text, datatype, "")
 	} else {
-		var literal ntriples.Literal
-		if dtAttr := findAttr(propElem, RDFDatatype); dtAttr != nil {
-			datatype, err := parseIRI(dtAttr.Value)
-			if err != nil {
-				return err
-			}
-			literal = ntriples.NewLiteral(childInfo.text, datatype, "")
-		} else {
-			literal, err = parseLiteral(p, childInfo.text)
-			if err != nil {
-				return err
-			}
+		literal, err = parseLiteral(p, childInfo.text)
+		if err != nil {
+			return err
 		}
-		triple := ntriples.NewTriple(subject, elemURI, ntriples.NewObjectLiteral(literal))
-		ind, err := p.tripleCallback(triple)
+	}
+	triple := ntriples.NewTriple(subject, elemURI, ntriples.NewObjectLiteral(literal))
+	ind, err := p.tripleCallback(triple)
+	if err != nil {
+		return p.errorf("triple callback error: %w", err)
+	}
+	if ind == Stop {
+		return nil
+	}
+	if attr := findAttr(propElem, RDFID); attr != nil {
+		i, err := resolve(p, "#"+attr.Value)
+		if err != nil {
+			return err
+		}
+		ind, err := emitReifiedTriple(p, triple, ntriples.NewSubjectIRI(i))
 		if err != nil {
 			return p.errorf("triple callback error: %w", err)
 		}
 		if ind == Stop {
 			return nil
 		}
-		// The end element was read
+	}
+	// The end element was read
+
+	return nil
+}
+
+// readPropertyElems parses the property elements of a nodeElem per
+// https://www.w3.org/TR/rdf-syntax-grammar/#propertyElt.
+func readPropertyElem(p *Parser, liCounter *int, subject *ntriples.Subject, propElem xml.StartElement) error {
+	handleCloseElem, err := p.handleGenericStartElem(propElem)
+	if err != nil {
+		return err
+	}
+	if err := readPropertyElemInternal(p, liCounter, subject, propElem); err != nil {
+		return err
 	}
 	if err := handleCloseElem(); err != nil {
 		return err
 	}
 
-	glog.Infof("got StartElement for subject %s: %q/%q %v /%v", subject, t.Name.Space, t.Name.Local, t, childInfo)
 	return nil
 }
 
@@ -667,13 +758,13 @@ func readNextChildOfPropertyElement(p *Parser) (*propertyElemParseInfo, error) {
 			if _, err := textBuilder.Write([]byte(t)); err != nil {
 				return nil, err
 			}
-		case *xml.StartElement:
+		case xml.StartElement:
 			text := textBuilder.String()
 			if strings.TrimSpace(text) != "" {
 				return nil, p.errorf("got start element %s for property and also non-whitespace element text %q", xmlNameToIRI(t.Name), text)
 			}
 			return &propertyElemParseInfo{
-				nodeElemStart: t,
+				nodeElemStart: &t,
 			}, nil
 		default:
 			// Skip comments and other types
@@ -738,9 +829,12 @@ func findAttr(elem xml.StartElement, iri ntriples.IRI) *xml.Attr {
 	return nil
 }
 
+// readElementContents reads the text contents of the element until the
+// end element is found.
 func readElementContents(p *Parser) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	enc := xml.NewEncoder(buf)
+	depth := 0
 	for {
 		tok, err := p.reader.Token()
 		if err != nil {
@@ -748,20 +842,23 @@ func readElementContents(p *Parser) ([]byte, error) {
 		}
 		switch tok.(type) {
 		case xml.EndElement:
-			if err := enc.Flush(); err != nil {
-				return nil, p.errorf("XML printing error: %w", err)
+			if depth == 0 {
+				if err := enc.Flush(); err != nil {
+					return nil, p.errorf("XML printing error: %w", err)
+				}
+				return buf.Bytes(), nil
 			}
-			return buf.Bytes(), nil
-
-		default:
-			if err := enc.EncodeToken(tok); err != nil {
-				return nil, p.errorf("XML printing error: %w", err)
-			}
+			depth--
+		case *xml.StartElement:
+			depth++
+		}
+		if err := enc.EncodeToken(tok); err != nil {
+			return nil, p.errorf("XML printing error: %w", err)
 		}
 	}
 }
 
-func readWhitespaceUntilEndElem(p *Parser) error {
+func readWhitespaceUntilEndElem(p *Parser, startElem *xml.StartElement) error {
 	for {
 		tok, err := p.reader.Token()
 		if err != nil {
@@ -769,6 +866,9 @@ func readWhitespaceUntilEndElem(p *Parser) error {
 		}
 		switch t := tok.(type) {
 		case xml.EndElement:
+			if startElem != nil && t.Name != startElem.Name {
+				return p.errorf("unexpected end elem %+v does not match start elem %+v", t.Name, startElem.Name)
+			}
 			return nil
 		case xml.CharData:
 			nonWS := strings.TrimSpace(string(t))
@@ -825,8 +925,11 @@ func filterAttrs(attrs []xml.Attr, pred func(xml.Attr) bool) []xml.Attr {
 	return out
 }
 
+var beginsWithXMLExpr = regexp.MustCompile(`^(?i)xml`)
+var xmlnsRE = regexp.MustCompile(`^(?i)` + regexp.QuoteMeta(xmlNS))
+
 func isXMLAttr(name xml.Name) bool {
-	return name.Space != xmlNS && (name.Space == "" && startWithXMLRegexp.MatchString(name.Local))
+	return xmlnsRE.MatchString(name.Space) || beginsWithXMLExpr.MatchString(name.Local)
 }
 
 func isPropertyAttr(name xml.Name) bool {

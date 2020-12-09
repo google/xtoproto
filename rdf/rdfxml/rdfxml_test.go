@@ -2,6 +2,7 @@ package rdfxml
 
 import (
 	"encoding/xml"
+	"fmt"
 	"sort"
 	"strings"
 	"testing"
@@ -10,6 +11,8 @@ import (
 	"github.com/google/xtoproto/rdf/ntriples"
 	"github.com/google/xtoproto/rdf/rdfxml/rdftestcases"
 )
+
+const parseIsFatal = true
 
 var cmpOpts = []cmp.Option{
 	cmp.Transformer("triple", func(tr *ntriples.Triple) stringifiedTriple {
@@ -35,13 +38,16 @@ func TestReadTriples_positive(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse triples: %v", err)
 			}
-			t.Logf("want %d triples", len(want))
 			parser := NewParser(xmlTokenizerFromString(tt.InputXML), &ParserOptions{BaseURL: ntriples.IRI(tt.DocumentURL)})
 			got, err := parser.ReadAllTriples()
 			if err != nil {
-				t.Errorf("RDF/XML parse failed: %v", err)
+				if parseIsFatal {
+					t.Fatalf("RDF/XML parse failed: %v", err)
+				} else {
+					t.Errorf("RDF/XML parse failed: %v", err)
+				}
 			}
-			if diff := diffTriples(want, got); diff != "" {
+			if diff := diffTriples(t, want, got); diff != "" {
 				t.Errorf("unexpected diff in parsed triples (-want, +got):\n  %s", diff)
 			}
 		})
@@ -69,8 +75,8 @@ func goFriendlyTestName(nameURL string) string {
 	return clean
 }
 
-func diffTriples(a, b []*ntriples.Triple) string {
-	want, got := a, b
+func diffTriples(t *testing.T, a, b []*ntriples.Triple) string {
+	t.Helper()
 	// See "Canonical Forms for Isomorphic and Equivalent RDF Graphs: Algorithms
 	// for Leaning and Labelling Blank Nodes" for an algorithm that canonicalizes
 	// blank nodes in an RDF graph.
@@ -82,9 +88,9 @@ func diffTriples(a, b []*ntriples.Triple) string {
 		return ""
 	}
 	aSorted := copyTriples(a)
-	sortIgnoringBlankNodes(aSorted)
+	sortNodes(aSorted, false)
 	bSorted := copyTriples(b)
-	sortIgnoringBlankNodes(bSorted)
+	sortNodes(bSorted, false)
 	diff2 := cmp.Diff(aSorted, bSorted, cmpOpts...)
 	if diff2 == "" {
 		return ""
@@ -92,13 +98,18 @@ func diffTriples(a, b []*ntriples.Triple) string {
 
 	diffs := []string{diff1, diff2}
 
-	if mapFn := mappingFromSortedTriples(want, got); mapFn != nil {
+	want, got := aSorted, bSorted
+	if mapFn := naiveMappingFromSortedTriples(t, want, got); mapFn != nil {
 		canonicalizedGot := applyBlankNodeMapping(got, mapFn)
-		diff3 := cmp.Diff(want, canonicalizedGot, cmpOpts...)
+		sortNodes(canonicalizedGot, true)
+		wantSorted := copyTriples(want)
+		sortNodes(wantSorted, true)
+		diff3 := cmp.Diff(wantSorted, canonicalizedGot, cmpOpts...)
 		if diff3 == "" {
 			return ""
 		}
-		diffs = append(diffs, diff3)
+		//diffs = append(diffs, diff3)
+		return diff3
 	}
 
 	sort.Slice(diffs, func(i, j int) bool {
@@ -107,8 +118,10 @@ func diffTriples(a, b []*ntriples.Triple) string {
 	return diffs[0]
 }
 
-func mappingFromSortedTriples(want, got []*ntriples.Triple) func(ntriples.BlankNodeID) ntriples.BlankNodeID {
+func naiveMappingFromSortedTriples(t *testing.T, want, got []*ntriples.Triple) func(ntriples.BlankNodeID) ntriples.BlankNodeID {
+	t.Helper()
 	if len(want) != len(got) {
+		t.Logf("can't generate naive mapping because of length mismatch (got %d, want %d)", len(got), len(want))
 		return nil
 	}
 	m := map[ntriples.BlankNodeID]ntriples.BlankNodeID{}
@@ -118,13 +131,28 @@ func mappingFromSortedTriples(want, got []*ntriples.Triple) func(ntriples.BlankN
 	}
 	for i, canonicalTriple := range want {
 		gotTriple := got[i]
-		if canonicalTriple.Subject().IsBlankNode() && gotTriple.Subject().IsBlankNode() && !hasEntry(gotTriple.Subject().BlankNodeID()) {
-			m[gotTriple.Subject().BlankNodeID()] = canonicalTriple.Subject().BlankNodeID()
+		// Check that the non-blank node portions of the tuples match.
+		if !canonicalTriple.Subject().IsBlankNode() && !ntriples.SubjectsEqual(gotTriple.Subject(), canonicalTriple.Subject()) {
+			continue
 		}
-		if canonicalTriple.Object().IsBlankNode() && gotTriple.Object().IsBlankNode() && !hasEntry(gotTriple.Object().BlankNodeID()) {
-			m[gotTriple.Object().BlankNodeID()] = canonicalTriple.Object().BlankNodeID()
+		if !canonicalTriple.Object().IsBlankNode() && !ntriples.ObjectsEqual(gotTriple.Object(), canonicalTriple.Object()) {
+			continue
+		}
+
+		if canonicalTriple.Subject().IsBlankNode() && gotTriple.Subject().IsBlankNode() {
+			id := gotTriple.Subject().BlankNodeID()
+			if !hasEntry(id) {
+				m[id] = canonicalTriple.Subject().BlankNodeID()
+			}
+		}
+		if canonicalTriple.Object().IsBlankNode() && gotTriple.Object().IsBlankNode() {
+			id := gotTriple.Object().BlankNodeID()
+			if !hasEntry(id) {
+				m[id] = canonicalTriple.Object().BlankNodeID()
+			}
 		}
 	}
+	t.Logf("created naive mapping with %d entries: %+v", len(m), m)
 	return func(id ntriples.BlankNodeID) ntriples.BlankNodeID {
 		canonical, ok := m[id]
 		if !ok {
@@ -160,7 +188,7 @@ func applyBlankNodeMapping(triples []*ntriples.Triple, mapping func(ntriples.Bla
 	return out
 }
 
-func sortIgnoringBlankNodes(sl []*ntriples.Triple) {
+func sortNodes(sl []*ntriples.Triple, compareBlankNodes bool) {
 	sort.Slice(sl, func(i, j int) bool {
 		a, b := sl[i], sl[j]
 		if a.Subject().IsBlankNode() && !b.Subject().IsBlankNode() {
@@ -169,7 +197,8 @@ func sortIgnoringBlankNodes(sl []*ntriples.Triple) {
 		if b.Subject().IsBlankNode() && !a.Subject().IsBlankNode() {
 			return false
 		}
-		if !a.Subject().IsBlankNode() && !b.Subject().IsBlankNode() {
+		bothSubjectsAreBlank := a.Subject().IsBlankNode() && b.Subject().IsBlankNode()
+		if !bothSubjectsAreBlank || compareBlankNodes {
 			aStr, bStr := a.Subject().String(), b.Subject().String()
 			if aStr != bStr {
 				return aStr < bStr
@@ -185,7 +214,8 @@ func sortIgnoringBlankNodes(sl []*ntriples.Triple) {
 		if b.Object().IsBlankNode() && !a.Object().IsBlankNode() {
 			return false
 		}
-		if !a.Object().IsBlankNode() && !b.Object().IsBlankNode() {
+		bothObjectsAreBlank := a.Object().IsBlankNode() && b.Object().IsBlankNode()
+		if !bothObjectsAreBlank || compareBlankNodes {
 			aStr, bStr := a.Object().String(), b.Object().String()
 			if aStr != bStr {
 				return aStr < bStr
@@ -199,4 +229,23 @@ func copyTriples(s []*ntriples.Triple) []*ntriples.Triple {
 	var out []*ntriples.Triple
 	out = append(out, s...)
 	return out
+}
+
+func TestIsXMLAttr(t *testing.T) {
+	for _, tt := range []struct {
+		name xml.Name
+		want bool
+	}{
+		{
+			xml.Name{Space: "", Local: "xmlns"},
+			true,
+		},
+	} {
+		t.Run(fmt.Sprintf("%s %s", tt.name.Space, tt.name.Local), func(t *testing.T) {
+			got := isXMLAttr(tt.name)
+			if got != tt.want {
+				t.Errorf("isXMLAttr(%+v) got %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
 }
