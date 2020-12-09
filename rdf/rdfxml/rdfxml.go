@@ -325,6 +325,12 @@ func readNodeElemUsingSubject(p *Parser, start xml.StartElement, forcedSubject *
 
 	subject := forcedSubject
 
+	if forcedSubject == nil {
+		if err := checkNodeElementURI(xmlNameToIRI(start.Name)); err != nil {
+			return nil, err
+		}
+	}
+
 	propAttrs, _, idAttrs, err := parsePropertyAttributes(start.Attr)
 	if err != nil {
 		return nil, p.errorf("bad attributes while parsing %+v: %w", start, err)
@@ -1135,6 +1141,22 @@ func isPropertyAttr(name xml.Name) bool {
 	default:
 		return !coreSyntaxTerms[term] && !oldTerms[term]
 	}
+}
+
+func checkNodeElementURI(name ntriples.IRI) error {
+	// 7.2.5 Production nodeElementURIs
+	// https://www.w3.org/TR/rdf-syntax-grammar/#nodeElementURIs
+	bad := false
+	switch name {
+	case RDFLI:
+		bad = true
+	default:
+		bad = coreSyntaxTerms[name] || oldTerms[name]
+	}
+	if bad {
+		return fmt.Errorf("invalid RDF node element name %s", name)
+	}
+	return nil
 }
 
 var coreSyntaxTerms = map[ntriples.IRI]bool{
