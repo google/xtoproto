@@ -5,7 +5,9 @@
 package iri
 
 import (
+	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -87,6 +89,65 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestResolveReference(t *testing.T) {
+	tests := []struct {
+		name      string
+		base, ref IRI
+		want      IRI
+	}{
+		{
+			name: "prop1",
+			base: `https://github.com/google/xtoproto/testing#prop1`,
+			ref:  `#3`,
+			want: "https://github.com/google/xtoproto/testing#3",
+		},
+		{
+			name: "slash blah",
+			base: `https://github.com/google/xtoproto/testing#prop1`,
+			ref:  `/blah`,
+			want: "https://github.com/blah",
+		},
+		{
+			name: "empty ref",
+			base: `https://github.com/google/xtoproto/testing#prop1`,
+			ref:  ``,
+			want: "https://github.com/google/xtoproto/testing#prop1",
+		},
+		{
+			name: "different full iri",
+			base: `https://github.com/google/xtoproto/testing#prop1`,
+			ref:  `http://x`,
+			want: "http://x",
+		},
+		{
+			name: "blank fragment",
+			base: `https://github.com/google/xtoproto/testing`,
+			ref:  `#`,
+			want: "https://github.com/google/xtoproto/testing#",
+		},
+		{
+			name: "replace completely",
+			base: "http://red@google.com:341",
+			ref:  `http://example/q?abc=1&def=2`,
+			want: `http://example/q?abc=1&def=2`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.base.ResolveReference(tt.ref)
+			if err := tt.base.Check(); err != nil {
+				t.Errorf("base IRI %s is not a valid IRI: %v", tt.base, err)
+			}
+			if err := tt.ref.Check(); err != nil {
+				t.Errorf("ref IRI %s is not a valid IRI: %v", tt.ref, err)
+			}
+			if got != tt.want {
+				t.Errorf("ResolveReference(%s, %s) got\n  %s, want\n  %s", tt.base, tt.ref, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestRegExps(t *testing.T) {
 	tests := []struct {
 		name string
@@ -115,4 +176,51 @@ func TestRegExps(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParts_ToIRI(t *testing.T) {
+	tests := []struct {
+		value IRI
+	}{
+		{""},
+		{"example.com"},
+		{"example.com:22"},
+		{"example.com:22/path/to"},
+		{"example.com:22/path/to?"},
+		{"example.com:22/path/to?q=a"},
+		{"example.com:22/path/to?q=a#b"},
+		{"example.com:22/path/to?q=a#"},
+		{"#"},
+		{""},
+		{"https://example.com"},
+		{"https://example.com:22"},
+		{"https://example.com:22/path/to"},
+		{"https://example.com:22/path/to?q=a"},
+		{"https://example.com:22/path/to?q=a#b"},
+		{"https://example.com:22/path/to?q=a#"},
+		{"https://#"},
+		{`http://example/q?abc=1&def=2`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.value.String(), func(t *testing.T) {
+			got := tt.value.parts().toIRI()
+			if got != tt.value {
+				t.Errorf(".parts().toIRI() roundtrip failed:\n  input:  %s\n  output: %s\n  parts:\n%s", tt.value, got, partsDescription(tt.value.parts()))
+			}
+		})
+	}
+}
+
+func partsDescription(p *parts) string {
+	s := &strings.Builder{}
+	fmt.Fprintf(s, "    scheme:        %q\n", p.scheme)
+	fmt.Fprintf(s, "    userInfo:      %q\n", p.userInfo)
+	fmt.Fprintf(s, "    host:          %q\n", p.host)
+	fmt.Fprintf(s, "    emptyAuth:     %v\n", p.emptyAuth)
+	fmt.Fprintf(s, "    port:          %q\n", p.port)
+	fmt.Fprintf(s, "    path:          %q\n", p.path)
+	fmt.Fprintf(s, "    query:         %q\n", p.query)
+	fmt.Fprintf(s, "    fragment:      %q\n", p.fragment)
+	fmt.Fprintf(s, "    emptyFragment: %v\n", p.emptyFragment)
+	return s.String()
 }
