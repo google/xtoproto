@@ -49,8 +49,8 @@ func TestString(t *testing.T) {
 			NewTriple(
 				NewSubjectBlankNodeID("a"),
 				"https://github.com/google/xtoproto/testing#prop1",
-				NewObjectLiteral(NewLiteral("tab\tnewline\ncarriage return\rslash\\", LangString, "en-us"))),
-			`_:a <https://github.com/google/xtoproto/testing#prop1> "tab\tnewline\ncarriage return\rslash\\"@en-us .`,
+				NewObjectLiteral(NewLiteral("tab\tnewline\ncarriage return\rslash\\q1'q2\"", LangString, "en-us"))),
+			`_:a <https://github.com/google/xtoproto/testing#prop1> "tab` + "\t" + `newline\ncarriage return\rslash\\q1'q2\""@en-us .`,
 		},
 	}
 	for _, tt := range tests {

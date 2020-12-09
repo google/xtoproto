@@ -226,13 +226,11 @@ func (gl *genericLiteral) LanguageTag() string {
 // that occurs in an NTriples statement, not a value that should be used as the
 // string value f the literal.
 func LiteralString(l Literal) string {
-	lexForm := l.LexicalForm()
-	if x, err := canonicalStringLiteral(lexForm); err != nil {
-		panic(err)
-	} else {
-		lexForm = x
+	quotedStringContents, err := canonicalStringLiteral(l.LexicalForm())
+	if err != nil {
+		panic(err) // internal error - should never happen
 	}
-	quotedString := fmt.Sprintf("%q", lexForm)
+	quotedString := fmt.Sprintf(`"%s"`, quotedStringContents)
 	// TODO(reddaly): Obey "Production of Terminals section" of https://www.w3.org/TR/n-triples/#grammar-production-LANGTAG.
 	if lang := l.LanguageTag(); lang != "" {
 		return fmt.Sprintf("%s@%s", quotedString, lang)
@@ -388,7 +386,7 @@ func parseObject(input string) (*Object, string, error) {
 const (
 	hex         = `[0-9A-Fa-f]`
 	uchar       = `(?:\\u` + hex + hex + hex + hex + `|\\U` + hex + hex + hex + hex + hex + hex + hex + hex + `)`
-	echar       = `\\[tbnrf"']`
+	echar       = `\\[\\tbnrf"']`
 	pnCharsBase = `A-Za-z\x{00C0}-\x{00D6}\x{00D8}-\x{00F6}\x{00F8}-\x{02FF}\x{0370}-\x{037D}\x{037F}-\x{1FFF}\x{200C}-\x{200D}\x{2070}-\x{218F}\x{2C00}-\x{2FEF}\x{3001}-\x{D7FF}\x{F900}-\x{FDCF}\x{FDF0}-\x{FFFD}\x{1000}0\#xEFFFF`
 	pnCharsU    = pnCharsBase + `_\:`
 	pnChars     = pnCharsU + `\-0-9\x{00B7}\x{0300}-\x{036F}\x{203F}-\x{2040}`
@@ -444,7 +442,11 @@ func ParseLiteral(input string) (Literal, string, error) {
 		return nil, "", fmt.Errorf("invalid literal: %s", input)
 	}
 	rest := input[len(parts[0]):]
-	lexicalForm, iri, lang := parts[1], parts[2], parts[3]
+	quotedLexicalForm, iri, lang := parts[1], parts[2], parts[3]
+	lexicalForm, err := parseStringLiteral(quotedLexicalForm)
+	if err != nil {
+		return nil, "", err
+	}
 	if iri == "" && lang == "" {
 		return NewLiteral(lexicalForm, XMLSchemaString, ""), rest, nil
 	} else if lang != "" {
@@ -476,53 +478,36 @@ const (
 	stringLiteralUCharGroup       = 3
 )
 
-// canonicalizeAlreadyQuotedContents returns the escaped characters that go between
-// quotation marks for string literals. The argument is already a legal
-// string literal (without the quotation marsk) - that is, the argument
-// already has escape sequences where necessary.
-//
-// The returned value will be the canonical form of the string according to the
-// rules in section 4 of the N-Triples spec:
-// https://www.w3.org/TR/n-triples/#canonical-ntriples.
-func canonicalizeAlreadyQuotedContents(in string) (string, error) {
-	canonical := strings.Builder{}
-	for _, charMatch := range stringLiteralCharCapture.FindAllStringSubmatch(in, -1) {
-		if len(charMatch[1]) != 0 {
-			canonical.WriteString(charMatch[1])
-		} else if len(charMatch[2]) != 0 {
-			canonical.WriteString(charMatch[2])
-		} else if len(charMatch[3]) != 0 {
-			code, err := strconv.ParseInt(charMatch[3][2:], 16, 64)
-			if err != nil {
-				return "", err
-			}
-			canonical.WriteRune(rune(code))
-		} else {
-			return "", fmt.Errorf("internal error with string %q - charmatch %+v", in, charMatch)
-		}
-	}
-	return canonical.String(), nil
-}
-
 // parseStringLiteral parses the literal form a string into a Go string.
 func parseStringLiteral(in string) (string, error) {
-	canonical := strings.Builder{}
+	builder := strings.Builder{}
 	for _, charMatch := range stringLiteralCharCapture.FindAllStringSubmatch(in, -1) {
-		if len(charMatch[1]) != 0 {
-			canonical.WriteString(charMatch[1])
-		} else if len(charMatch[2]) != 0 {
-			canonical.WriteString(charMatch[2])
-		} else if len(charMatch[3]) != 0 {
-			code, err := strconv.ParseInt(charMatch[3][2:], 16, 64)
-			if err != nil {
-				return "", err
+		if c := charMatch[stringLiteralRegularCharGroup]; len(c) != 0 {
+			builder.WriteString(c)
+			continue
+		}
+		if c := charMatch[stringLiteralECharGroup]; len(c) != 0 {
+
+			r, ok := allEscapes[rune(c[1])]
+			if !ok {
+				return "", fmt.Errorf("internal error: bad escape sequence %q", c)
 			}
-			canonical.WriteRune(rune(code))
+			builder.WriteRune(r)
+			continue
+		}
+		if c := charMatch[stringLiteralUCharGroup]; len(c) != 0 {
+			code, err := strconv.ParseInt(c[2:], 16, 64)
+			if err != nil {
+				return "", fmt.Errorf("internal error: bad hex sequence %q: %w", c, err)
+			}
+			builder.WriteRune(rune(code))
 		} else {
 			return "", fmt.Errorf("internal error with string %q - charmatch %+v", in, charMatch)
 		}
 	}
-	return canonical.String(), nil
+	// TODO(reddaly): Use https://godoc.org/golang.org/x/text/unicode/norm#Form.String
+	// on the returned string using norm.NFC?
+	return builder.String(), nil
 }
 
 // canonicalFormEscapes maps a rune to an escaped version of that rune.
@@ -531,10 +516,21 @@ func parseStringLiteral(in string) (string, error) {
 // U+000D are encoded using ECHAR. ECHAR must not be used for characters that
 // are allowed directly in STRING_LITERAL_QUOTE."
 var canonicalFormEscapes = map[rune]string{
-	'\u0022': "\\\u0022", // "
-	'\u005C': "\\\u005C", // \
-	'\u000A': "\\\u000A", // line feed (\n)
-	'\u000D': "\\\u000D", // carriage return (\r)
+	'"':  `\"`, // "
+	'\\': `\\`, // \
+	'\n': `\n`, // line feed (\n)
+	'\r': `\r`, // carriage return (\r)
+}
+
+var allEscapes = map[rune]rune{ // echar: tbnrf"'\
+	't':  '\t',
+	'b':  '\b',
+	'n':  '\n',
+	'r':  '\r',
+	'f':  '\f',
+	'\'': '\'',
+	'"':  '"',
+	'\\': '\\',
 }
 
 // canonicalStringLiteral returns the escaped characters that go between
