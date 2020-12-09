@@ -40,6 +40,9 @@ const (
 	RDFPredicate   ntriples.IRI = RDF + "predicate"
 	RDFObject      ntriples.IRI = RDF + "object"
 	RDFStatement   ntriples.IRI = RDF + "Statement"
+	RDFNil         ntriples.IRI = RDF + "nil"
+	RDFRest        ntriples.IRI = RDF + "rest"
+	RDFFirst       ntriples.IRI = RDF + "first"
 
 	xmlNS string = "http://www.w3.org/XML/1998/namespace"
 )
@@ -110,30 +113,38 @@ func readRootOrNodeElem(p *Parser) error {
 }
 
 func readNodeElemsAndEndRootElement(p *Parser) error {
+	_, err := readNodeElemsAndEndElement(p, RDFRoot)
+	return err
+}
+
+func readNodeElemsAndEndElement(p *Parser, wantEnd ntriples.IRI) ([]*ntriples.Subject, error) {
+	var subjects []*ntriples.Subject
 	for {
 		tok, err := p.reader.Token()
 		if err == io.EOF {
-			return fmt.Errorf("unexpected end of file while parsing rdf:Root")
+			return nil, fmt.Errorf("unexpected end of file while parsing rdf:Root")
 		}
 		if err != nil {
-			return fmt.Errorf("XML error while parsing rdf:Root: %v", err)
+			return nil, fmt.Errorf("XML error while parsing rdf:Root: %v", err)
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
 			// Otherwise, treat this like reading a regular node element.
 			// See https://www.w3.org/TR/rdf-syntax-grammar/#nodeElement.
-			if _, err := readNodeElem(p, t); err != nil {
-				return err
+			sub, err := readNodeElem(p, t)
+			if err != nil {
+				return nil, err
 			}
+			subjects = append(subjects, sub)
 		case xml.EndElement:
-			if xmlNameToIRI(t.Name) != RDFRoot {
-				return p.errorf("internal parsing error - only expect an end element when handlng rdf:Root; probably forgot to consume an EndElement elsewhere: %+v", t)
+			if got := xmlNameToIRI(t.Name); got != wantEnd {
+				return nil, p.errorf("internal parsing error - got end element %s, want %q; probably forgot to consume an EndElement elsewhere: %+v", got, wantEnd, t)
 			}
-			return nil
+			return subjects, nil
 		case xml.CharData:
 			str := string(t)
 			if strings.TrimSpace(str) != "" {
-				return p.errorf("unexpected non-whitespace element text %q", str)
+				return nil, p.errorf("unexpected non-whitespace element text %q", str)
 			}
 		case xml.Comment: // ignore
 		case xml.ProcInst: // ignore
@@ -231,6 +242,17 @@ func (p *Parser) generateBlankNodeID() ntriples.BlankNodeID {
 	for {
 		p.nextBlankNodeID++
 		candidate := ntriples.BlankNodeID(fmt.Sprintf("gen-%d", p.nextBlankNodeID))
+		if p.observedBlankNodes[candidate] {
+			continue
+		}
+		return candidate
+	}
+}
+
+func (p *Parser) generateBlankNodeIDWithHint(hint string) ntriples.BlankNodeID {
+	for {
+		p.nextBlankNodeID++
+		candidate := ntriples.BlankNodeID(fmt.Sprintf("gen-%d-%s", p.nextBlankNodeID, hint))
 		if p.observedBlankNodes[candidate] {
 			continue
 		}
@@ -499,7 +521,7 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 
 			return nil
 		case "Collection":
-			return p.errorf("unsupported parseType Collection")
+			return readSequencePropertyElem(p, subject, propElem, elemURI)
 		case "Literal":
 			fallthrough
 		default: // unrecognized parseType is treated as a "Literal" per spec
@@ -715,6 +737,71 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 	// The end element was read
 
 	return nil
+}
+
+func readSequencePropertyElem(p *Parser, subject *ntriples.Subject, propElem xml.StartElement, propElemURI ntriples.IRI) error {
+	// Section 7.2.19
+	emittedSubjects, err := readNodeElemsAndEndElement(p, xmlNameToIRI(propElem.Name))
+	if err != nil {
+		return err
+	}
+	if len(emittedSubjects) == 0 {
+		triple := ntriples.NewTriple(subject, propElemURI, ntriples.NewObjectIRI(RDFNil))
+		ind, err := p.tripleCallback(triple)
+		if err != nil || ind == Stop {
+			return err
+		}
+		if attr := findAttr(propElem, RDFID); attr != nil {
+			i, err := resolve(p, "#"+attr.Value)
+			if err != nil {
+				return err
+			}
+			if ind, err := emitReifiedTriple(p, triple, ntriples.NewSubjectIRI(i)); err != nil || ind == Stop {
+				return err
+			}
+		}
+		return nil
+	}
+	seqID := p.generateBlankNodeIDWithHint("first-in-seq")
+	{
+		triple := ntriples.NewTriple(subject, propElemURI, ntriples.NewObjectBlankNodeID(seqID))
+		ind, err := p.tripleCallback(triple)
+		if err != nil || ind == Stop {
+			return err
+		}
+		if attr := findAttr(propElem, RDFID); attr != nil {
+			i, err := resolve(p, "#"+attr.Value)
+			if err != nil {
+				return err
+			}
+			if ind, err := emitReifiedTriple(p, triple, ntriples.NewSubjectIRI(i)); err != nil || ind == Stop {
+				return err
+			}
+		}
+	}
+
+	isFirst := true
+	for i, emittedSub := range emittedSubjects {
+		nextSeqID := p.generateBlankNodeIDWithHint(fmt.Sprintf("cons-%d", i))
+		if !isFirst {
+			triple := ntriples.NewTriple(ntriples.NewSubjectBlankNodeID(seqID), RDFRest, ntriples.NewObjectBlankNodeID(nextSeqID))
+			ind, err := p.tripleCallback(triple)
+			if err != nil || ind == Stop {
+				return err
+			}
+		}
+		isFirst = false
+		seqID = nextSeqID
+		triple := ntriples.NewTriple(ntriples.NewSubjectBlankNodeID(seqID), RDFFirst, ntriples.NewObjectFromSubject(emittedSub))
+		ind, err := p.tripleCallback(triple)
+		if err != nil || ind == Stop {
+			return err
+		}
+	}
+
+	triple := ntriples.NewTriple(ntriples.NewSubjectBlankNodeID(seqID), RDFRest, ntriples.NewObjectIRI(RDFNil))
+	_, err = p.tripleCallback(triple)
+	return err
 }
 
 // readPropertyElems parses the property elements of a nodeElem per
