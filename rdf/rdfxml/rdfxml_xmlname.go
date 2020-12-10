@@ -11,7 +11,7 @@ import (
 
 func checkXMLName(candidate string) error {
 	if !xmlNameRegexp.MatchString(candidate) {
-		return fmt.Errorf("%q is not a valid XML Name", candidate)
+		return fmt.Errorf("%q is not a valid XML Name per https://www.w3.org/TR/REC-xml/#sec-common-syn", candidate)
 	}
 	return nil
 }
@@ -21,7 +21,7 @@ func checkXMLNCName(candidate string) error {
 		return err
 	}
 	if strings.Contains(candidate, ":") {
-		return fmt.Errorf("%q is not a valid NC name bacue it contains a : character", candidate)
+		return fmt.Errorf("%q is not a valid NC name bacue it contains a : character - see NCName in https://www.w3.org/TR/REC-xml/#sec-common-syn", candidate)
 	}
 	return nil
 }
