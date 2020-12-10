@@ -644,8 +644,12 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 
 	if childInfo.isEmptyProperty {
 		// 7.2.21 Production emptyPropertyElt
-		attrs := rdfAttributes(propElem.Attr)
-		if len(attrs) == 0 || (len(attrs) == 1 && xmlNameToIRI(attrs[0].Name) == RDFID) {
+		idAttr, _, _, _, propAttrs, attrCount, err := parseEmptyPropertyElementAttributes(propElem.Attr)
+		if err != nil {
+			return p.errorf("error processing attributs of empty literal property: %w", err)
+		}
+
+		if attrCount == 0 || (attrCount == 1 && idAttr != nil) {
 			// If there are no attributes or only the optional rdf:ID attribute i then
 			// o := literal(literal-value:="", literal-language := e.language) and the
 			// following statement is added to the graph:
@@ -665,8 +669,8 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 			// 7.2.21: f rdf:ID attribute i is given, the above statement is reified
 			// with uri(identifier := resolve(e, concat("#", i.string-value))) using
 			// the reification rules in section 7.3.
-			if attr := findAttr(propElem, RDFID); attr != nil {
-				i, err := resolve(p, "#"+attr.Value)
+			if idAttr != nil {
+				i, err := resolve(p, "#"+idAttr.Value)
 				if err != nil {
 					return err
 				}
@@ -682,13 +686,12 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 			// If rdf:resource attribute i is present, then r := uri(identifier := resolve(e, i.string-value))
 			// If rdf:nodeID attribute i is present, then r := bnodeid(identifier := i.string-value)
 			// If neither, r := bnodeid(identifier := generated-blank-node-id())
+			attrs := rdfAttributes(propElem.Attr)
 			r, err := parseEmptyPropertyResource(p, attrs)
 			if err != nil {
 				return err
 			}
-			for _, propAttr := range filterAttrs(attrs, func(a xml.Attr) bool {
-				return isPropertyAttr(a.Name)
-			}) {
+			for _, propAttr := range propAttrs {
 				var triple1 *ntriples.Triple
 				propAsIRI := xmlNameToIRI(propAttr.Name)
 				if propAsIRI == RDFType {
@@ -726,8 +729,8 @@ func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subje
 			// concat("#", i.string-value))) using the reification rules in section
 			// 7.3.
 
-			if attr := findAttr(propElem, RDFID); attr != nil {
-				i, err := resolve(p, "#"+attr.Value)
+			if idAttr != nil {
+				i, err := resolve(p, "#"+idAttr.Value)
 				if err != nil {
 					return err
 				}
@@ -1198,6 +1201,48 @@ func parseLiteralPropertyElementAttributes(allAttrs []xml.Attr) (id, datatype *x
 	}
 	if len(badTerms) != 0 {
 		return nil, nil, fmt.Errorf("got %d extra attributes in literal property element: %s", len(badTerms), strings.Join(badTerms, ", "))
+	}
+	return
+}
+
+func parseEmptyPropertyElementAttributes(allAttrs []xml.Attr) (id, resource, nodeID, datatype *xml.Attr, propertyAttrs []xml.Attr, attrCount int, err error) {
+	// 7.2.21 Production emptyPropertyElt
+	var badTerms []string
+	xorCount := 0
+	for _, a := range allAttrs {
+		a := a
+		if isXMLAttr(a.Name) {
+			continue
+		}
+		attrCount++
+		uri := xmlNameToIRI(a.Name)
+		switch uri {
+		case RDFID:
+			id = &a
+		case RDFDatatype:
+			datatype = &a
+			xorCount++
+		case RDFNodeID:
+			nodeID = &a
+			xorCount++
+		case RDFResource:
+			resource = &a
+			xorCount++
+		default:
+			if !isPropertyAttr(a.Name) {
+				badTerms = append(badTerms, a.Name.Local)
+				continue
+			}
+			propertyAttrs = append(propertyAttrs, a)
+		}
+	}
+	if len(badTerms) != 0 {
+		err = fmt.Errorf("got %d extra attributes in literal property element: %s", len(badTerms), strings.Join(badTerms, ", "))
+		return
+	}
+	if xorCount > 1 {
+		err = fmt.Errorf("got more than one of rdf:NodeID, rdf:Resource, rdf:datatype: %v", allAttrs)
+		return
 	}
 	return
 }
