@@ -202,7 +202,7 @@
    limitations under the License.
 
 
-The contents of rdf/iri/iri_resolve.go are LICENSE use code from the Go language
+The contents of rdf/iri/iri_resolve.go uses code from the Go language
 project, which has this license:
 
 Copyright (c) 2009 The Go Authors. All rights reserved.
