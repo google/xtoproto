@@ -18,9 +18,6 @@ import (
 type IRI string
 
 // Parse parses a string into an IRI and checks that it conforms to RFC 3987.
-//
-// Note that the implementation currently relies on url.Parse, which does not
-// indicate suport for IRIs specifically.
 func Parse(s string) (IRI, error) {
 	match := uriRE.FindStringSubmatch(s)
 	if len(match) == 0 {

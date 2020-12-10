@@ -19,7 +19,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/golang/glog"
 	"github.com/google/xtoproto/rdf/iri"
 	"github.com/google/xtoproto/rdf/ntriples"
 )
@@ -1016,7 +1015,6 @@ func readNextChildOfPropertyElement(p *Parser) (*propertyElemParseInfo, error) {
 // fragment identifier to the in-scope base URI. The empty string is transformed
 // into an IRI by substituting the in-scope base URI.
 func resolve(p *Parser, s string) (ntriples.IRI, error) {
-	glog.Infof("resolve(%q) with baseURI %s and stack %+v", s, p.baseURI(), p.xmlBaseStack)
 	if s == "" {
 		return p.baseURI(), nil
 	}
@@ -1073,18 +1071,16 @@ func readElementContents(p *Parser) ([]byte, error) {
 		if err != nil {
 			return nil, p.errorf("XML read error: %w", err)
 		}
-		switch t := tok.(type) {
+		switch tok.(type) {
 		case xml.EndElement:
 			if depth == 0 {
 				if err := enc.Flush(); err != nil {
 					return nil, p.errorf("XML printing error: %w", err)
 				}
-				glog.Infof("readElementContents got text contents %q", string(buf.Bytes()))
 				return buf.Bytes(), nil
 			}
 			depth--
 		case xml.StartElement:
-			glog.Infof("readElementContents depth %d, start %q", depth, t.Name.Local)
 			depth++
 		}
 		if err := enc.EncodeToken(tok); err != nil {
@@ -1285,7 +1281,6 @@ var beginsWithXMLExpr = regexp.MustCompile(`^(?i)xml`)
 var xmlnsRE = regexp.MustCompile(`^(?i)` + regexp.QuoteMeta(xmlNS))
 
 func isXMLAttr(name xml.Name) bool {
-	glog.Infof("isXMLAttr(%+v) = %v", name, xmlnsRE.MatchString(name.Space) || beginsWithXMLExpr.MatchString(name.Local) || beginsWithXMLExpr.MatchString(name.Space))
 	return xmlnsRE.MatchString(name.Space) || beginsWithXMLExpr.MatchString(name.Local) || beginsWithXMLExpr.MatchString(name.Space)
 }
 
