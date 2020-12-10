@@ -383,6 +383,9 @@ func readNodeElemUsingSubject(p *Parser, start xml.StartElement, forcedSubject *
 			}
 			subject = ntriples.NewSubjectIRI(subIRI)
 		case RDFNodeID:
+			if err := checkXMLNCName(attr.Value); err != nil {
+				return nil, p.errorf("invalid rdf:nodeID parameter: %w", err)
+			}
 			blankID, err := parseBlankNodeID(attr.Value)
 			if err != nil {
 				return nil, p.errorf("bad IRI for rdf:Description's rdf:NodeID attribute: %w", err)
@@ -506,6 +509,9 @@ func readPropertyElems(p *Parser, startElemName xml.Name, subject *ntriples.Subj
 // https://www.w3.org/TR/rdf-syntax-grammar/#propertyElt.
 func readPropertyElemInternal(p *Parser, liCounter *int, subject *ntriples.Subject, propElem xml.StartElement) error {
 	elemURI := xmlNameToIRI(propElem.Name)
+	if err := checkPropertyElementURI(elemURI); err != nil {
+		return p.errorf("bad property element %+v: %w", propElem, err)
+	}
 	switch elemURI {
 	case RDFLI:
 		elemURI = ntriples.IRI(fmt.Sprintf("%s_%d", string(RDF), *liCounter))
@@ -918,6 +924,9 @@ func parseEmptyPropertyResource(p *Parser, attrs []xml.Attr) (*ntriples.Subject,
 			}
 			subject = ntriples.NewSubjectIRI(subIRI)
 		case RDFNodeID:
+			if err := checkXMLNCName(attr.Value); err != nil {
+				return nil, p.errorf("invalid rdf:nodeID parameter: %w", err)
+			}
 			blankID, err := parseBlankNodeID(attr.Value)
 			if err != nil {
 				return nil, p.errorf("bad IRI for rdf:Description's rdf:NodeID attribute: %w", err)
@@ -1223,6 +1232,9 @@ func parseEmptyPropertyElementAttributes(allAttrs []xml.Attr) (id, resource, nod
 			datatype = &a
 			xorCount++
 		case RDFNodeID:
+			if err := checkXMLNCName(a.Value); err != nil {
+				return nil, nil, nil, nil, nil, 0, fmt.Errorf("invalid rdf:nodeID parameter: %w", err)
+			}
 			nodeID = &a
 			xorCount++
 		case RDFResource:
@@ -1289,6 +1301,19 @@ func checkNodeElementURI(name ntriples.IRI) error {
 	}
 	if bad {
 		return fmt.Errorf("invalid RDF node element name %s", name)
+	}
+	return nil
+}
+
+func checkPropertyElementURI(name ntriples.IRI) error {
+	if coreSyntaxTerms[name] {
+		return fmt.Errorf("a core rdf syntax term may not be used as a property element name: %s", name)
+	}
+	if oldTerms[name] {
+		return fmt.Errorf("an old rdf syntax term may not be used as a property element name: %s", name)
+	}
+	if name == RDFDescription {
+		return fmt.Errorf("rdf:Description may not be used as a property element name")
 	}
 	return nil
 }
