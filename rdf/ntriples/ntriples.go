@@ -542,7 +542,7 @@ var allEscapes = map[rune]rune{ // echar: tbnrf"'\
 // https://www.w3.org/TR/n-triples/#canonical-ntriples.
 func canonicalStringLiteral(in string) (string, error) {
 	quoted := strings.Builder{}
-	for _, r := range []rune(in) {
+	for _, r := range in {
 		// "Within STRING_LITERAL_QUOTE, only the characters U+0022, U+005C, U+000A,
 		// U+000D are encoded using ECHAR. ECHAR must not be used for characters
 		// that are allowed directly in STRING_LITERAL_QUOTE."
