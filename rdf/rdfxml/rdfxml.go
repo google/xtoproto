@@ -1,3 +1,13 @@
+// Package rdfxml parses RDF/XML documents according to the W3C standard.
+//
+// The package uses the github.com/google/xtoproto/rdf/ntriples package for
+// representing triples and their constituent parts.
+//
+// As of v0.0.13, this package passes all of the test cases published by the W3C
+// at https://www.w3.org/TR/rdf-testcases/.
+//
+// The RDF/XML specification is published at
+// https://www.w3.org/TR/rdf-syntax-grammar/.
 package rdfxml
 
 import (
