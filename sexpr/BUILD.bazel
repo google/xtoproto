@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "sexpr.go",
+        "sexpr_factory.go",
+        "sexpr_sourcefile.go",
+        "sexpr_util.go",
+    ],
+    importpath = "github.com/google/xtoproto/sexpr",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = [
+        "sexpr_examples_test.go",
+        "sexpr_test.go",
+    ],
+    embed = [":go_default_library"],
+    deps = [
+        "@com_github_google_go_cmp//cmp:go_default_library",
+        "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
+    ],
+)
