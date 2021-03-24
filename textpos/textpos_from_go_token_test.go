@@ -8,8 +8,8 @@ import (
 )
 
 func checkPos(t *testing.T, msg string, got, want Position) {
-	if got.documentName != want.documentName {
-		t.Errorf("%s: got filename = %q; want %q", msg, got.documentName, want.documentName)
+	if got.fileName != want.fileName {
+		t.Errorf("%s: got filename = %q; want %q", msg, got.fileName, want.fileName)
 	}
 	if got.offset != want.offset {
 		t.Errorf("%s: got offset = %d; want %d", msg, got.Offset(), want.Offset())
@@ -313,11 +313,11 @@ done
 		// manually compute wanted filename and line
 		line := want.Line()
 		if i+1 >= l1 {
-			want.documentName = ""
+			want.fileName = ""
 			want.lineColumn = lineColFromOrdinals(line.Ordinal()-l1+100, want.lineColumn.Column().Ordinal())
 		}
 		if i+1 >= l2 {
-			want.documentName = "bar"
+			want.fileName = "bar"
 			want.lineColumn = lineColFromOrdinals(line.Ordinal()-l2+3, want.lineColumn.Column().Ordinal())
 		}
 		checkPos(t, "3. PositionFor adjusted", got2, want)
