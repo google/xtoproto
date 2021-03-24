@@ -1,5 +1,7 @@
-// Package textpos provides types and functions for working with intervals of
-// text in a textual document.
+// Package textpos provides types and functions for working with line-based
+// positions of text in a textual document.
+//
+// WARNING: This package's API is in flux. It is based on the "go/token" package.
 package textpos
 
 import "fmt"
