@@ -1,0 +1,17 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "textpos.go",
+        "textpos_from_go_token.go",
+    ],
+    importpath = "github.com/google/xtoproto/textpos",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["textpos_from_go_token_test.go"],
+    embed = [":go_default_library"],
+)
