@@ -4,7 +4,7 @@ package textpos
 
 import "fmt"
 
-// Line is the relative line number of some text.
+// Line is the line number of some text in a file.
 type Line struct {
 	value int
 }
@@ -27,7 +27,13 @@ func (n Line) String() string { return fmt.Sprintf("%d", n.Ordinal()) }
 // IsValid reports if the line value is valid (ordinal >= 1).
 func (n Line) IsValid() bool { return n.Ordinal() > 0 }
 
-// Column is the relative column number of some text.
+// Column is a number indicating a horrizontal offset within a line of text.
+//
+// Column may be used to designate byte or character offsets. Byte offsets are
+// advantageous because they are simple well-defined but match cursor positions
+// in most text editors. Characters are not a universally well-defined and
+// require more complex lookup but generally correspond to cursor positions in
+// text editors.
 type Column struct {
 	value int
 }
@@ -66,3 +72,17 @@ func (p LineColumn) Line() Line { return p.line }
 
 // Column returns the column for the tuple.
 func (p LineColumn) Column() Column { return p.col }
+
+// String returns a string representation of a LineColumn pair.
+//
+// If column and line are valid, returns "lineOrdinal:columnOrdinal."
+func (p LineColumn) String() string {
+	l, c := "-", "-"
+	if p.Line().IsValid() {
+		l = fmt.Sprintf("%d", p.Line().Ordinal())
+	}
+	if p.Line().IsValid() {
+		c = fmt.Sprintf("%d", p.Column().Ordinal())
+	}
+	return fmt.Sprintf("%s:%s", l, c)
+}

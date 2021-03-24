@@ -148,7 +148,7 @@ func TestLineInfo(t *testing.T) {
 	// add lines individually and provide alternative line information
 	for _, offs := range lines {
 		f.AddLine(offs)
-		f.AddLineInfo(offs, "bar", 42)
+		f.addLineInfo(offs, "bar", 42)
 	}
 	// verify positions for all offsets
 	for offs := 0; offs <= f.Size(); offs++ {
@@ -253,7 +253,7 @@ func TestFileSetRace2(t *testing.T) {
 	go func() {
 		pos := file.Pos(0)
 		for i := 0; i < N; i++ {
-			fset.PositionFor(pos, false)
+			fset.positionFor(pos, false)
 		}
 		ch <- 1
 	}()
@@ -284,8 +284,8 @@ done
 
 	// verify position info
 	for i, offs := range f.lines {
-		got1 := f.PositionFor(f.Pos(offs), false)
-		got2 := f.PositionFor(f.Pos(offs), true)
+		got1 := f.positionFor(f.Pos(offs), false)
+		got2 := f.positionFor(f.Pos(offs), true)
 		got3 := f.Position(f.Pos(offs))
 		want := Position{filename, offs, MakeLineColumn(LineFromOrdinal(i+1), ColumnFromOrdinal(1))}
 		checkPos(t, "1. PositionFor unadjusted", got1, want)
@@ -295,19 +295,19 @@ done
 
 	// manually add //line info on lines l1, l2
 	const l1, l2 = 5, 7
-	f.AddLineInfo(f.lines[l1-1], "", 100)
-	f.AddLineInfo(f.lines[l2-1], "bar", 3)
+	f.addLineInfo(f.lines[l1-1], "", 100)
+	f.addLineInfo(f.lines[l2-1], "bar", 3)
 
 	// unadjusted position info must remain unchanged
 	for i, offs := range f.lines {
-		got1 := f.PositionFor(f.Pos(offs), false)
+		got1 := f.positionFor(f.Pos(offs), false)
 		want := Position{filename, offs, lineColFromOrdinals(i+1, 1)}
 		checkPos(t, "2. PositionFor unadjusted", got1, want)
 	}
 
 	// adjusted position info should have changed
 	for i, offs := range f.lines {
-		got2 := f.PositionFor(f.Pos(offs), true)
+		got2 := f.positionFor(f.Pos(offs), true)
 		got3 := f.Position(f.Pos(offs))
 		want := Position{filename, offs, lineColFromOrdinals(i+1, 1)}
 		// manually compute wanted filename and line
@@ -332,10 +332,117 @@ func TestLineStart(t *testing.T) {
 	f.SetLinesForContent([]byte(src))
 
 	for line := 1; line <= 3; line++ {
-		pos := f.LineStart(line)
+		pos := f.LineStart(LineFromOrdinal(line))
 		position := fset.Position(pos)
 		if position.Line() != LineFromOrdinal(line) || position.Column() != ColumnFromOrdinal(1) {
 			t.Errorf("LineStart(%d) returned wrong pos %d: %s", line, pos, position)
 		}
 	}
 }
+
+func TestMultibyteChar(t *testing.T) {
+	for _, tt := range []struct {
+		name    string
+		content []byte
+		offset  int
+		want    LineColumn
+	}{
+		{
+			// See https://github.com/golang/go/issues/45169 for justification
+			// of using bytes, not characters, for column.
+			"column after 4-byte character should be 5, not 2",
+			[]byte("😀fun"), // 😀 is U+1F600, four bytes in utf-8 (f09f9880)),
+			4,
+			lineColFromOrdinals(1, 5),
+		},
+		{
+			"column after 4-byte character should be 2, not 5",
+			[]byte("abcde"),
+			4,
+			lineColFromOrdinals(1, 5),
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+
+			fs := NewFileSet()
+			f := fs.AddFile("main.txt", -1, len(tt.content))
+			f.SetLinesForContent(tt.content)
+			got := f.Position(f.Pos(tt.offset)).lineColumn
+			if got.String() != tt.want.String() {
+				t.Errorf("file.Position(offset %d) got %s, want %s", tt.offset, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPositionForLineColumn(t *testing.T) {
+	for _, tt := range []struct {
+		name           string
+		content        []byte
+		lineColumn     LineColumn
+		wantValid      bool
+		wantByteOffset int
+	}{
+		{
+			"columns can be in the middle of a code point",
+			[]byte("😀fun"), // 😀 is U+1F600, four bytes in utf-8 (f09f9880).
+			lineColFromOrdinals(1, 2),
+			true,
+			1,
+		},
+		{
+			"2,2 is offset 11",
+			[]byte("abcdefghi\ncd"),
+			lineColFromOrdinals(2, 2),
+			true,
+			11,
+		},
+		{
+			"invalid position 2,10",
+			[]byte("abcdefghi\ncd"),
+			lineColFromOrdinals(2, 10),
+			false,
+			0,
+		},
+		{
+			"invalid position 3,3",
+			[]byte("abcdefghi\ncd"),
+			lineColFromOrdinals(3, 3),
+			false,
+			0,
+		},
+		{
+			"invalid position 1,0",
+			[]byte("abcdefghi\ncd"),
+			lineColFromOrdinals(1, 0),
+			false,
+			0,
+		},
+		{
+			"invalid position 0,1",
+			[]byte("abcdefghi\ncd"),
+			lineColFromOrdinals(0, 1),
+			false,
+			0,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+
+			fs := NewFileSet()
+			f := fs.AddFile("main.txt", -1, len(tt.content))
+			f.SetLinesForContent(tt.content)
+			gotPos := f.PosForLineColumn(tt.lineColumn)
+			if got, want := gotPos.IsValid(), tt.wantValid; got != want {
+				t.Fatalf("got position.IsValid() = %v, want %v", got, want)
+			}
+			if !gotPos.IsValid() {
+				return
+			}
+			if got, want := f.Offset(gotPos), tt.wantByteOffset; got != want {
+				t.Errorf("got offset %d, want %d", got, want)
+			}
+		})
+	}
+}
+
+//😀

@@ -153,12 +153,12 @@ func (s *FileSet) File(p Pos) (f *File) {
 	return
 }
 
-// PositionFor converts a Pos p in the fileset into a Position value.
+// positionFor converts a Pos p in the fileset into a Position value.
 // If adjusted is set, the position may be adjusted by position-altering
 // //line comments; otherwise those comments are ignored.
 // p must be a Pos value in s or NoPos.
 //
-func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
+func (s *FileSet) positionFor(p Pos, adjusted bool) (pos Position) {
 	if p != NoPos {
 		if f := s.file(p); f != nil {
 			return f.position(p, adjusted)
@@ -171,7 +171,7 @@ func (s *FileSet) PositionFor(p Pos, adjusted bool) (pos Position) {
 // Calling s.Position(p) is equivalent to calling s.PositionFor(p, true).
 //
 func (s *FileSet) Position(p Pos) (pos Position) {
-	return s.PositionFor(p, true)
+	return s.positionFor(p, true)
 }
 
 // -----------------------------------------------------------------------------
@@ -299,16 +299,30 @@ func (f *File) SetLinesForContent(content []byte) {
 // LineStart returns the Pos value of the start of the specified line.
 // It ignores any alternative positions set using AddLineColumnInfo.
 // LineStart panics if the 1-based line number is invalid.
-func (f *File) LineStart(line int) Pos {
-	if line < 1 {
-		panic(fmt.Sprintf("invalid line number %d (should be >= 1)", line))
-	}
+func (f *File) LineStart(line Line) Pos {
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
-	if line > len(f.lines) {
-		panic(fmt.Sprintf("invalid line number %d (should be < %d)", line, len(f.lines)))
+	return f.lineStartWithMutexHeld(line)
+}
+
+func (f *File) lineStartWithMutexHeld(line Line) Pos {
+	if !line.IsValid() {
+		panic(fmt.Sprintf("invalid line %s", line))
 	}
-	return Pos(f.base + f.lines[line-1])
+	if line.Ordinal() > len(f.lines) {
+		panic(fmt.Sprintf("invalid line %s", line, len(f.lines)))
+	}
+	return Pos(f.base + f.lines[line.Offset()])
+}
+
+func (f *File) lineStartOrNoPosWithMutexHeld(line Line) Pos {
+	if !line.IsValid() {
+		return NoPos
+	}
+	if line.Ordinal() > len(f.lines) {
+		return NoPos
+	}
+	return Pos(f.base + f.lines[line.Offset()])
 }
 
 // A lineInfo object describes alternative file, line, and column
@@ -321,23 +335,24 @@ type lineInfo struct {
 	Line, Column int
 }
 
-// AddLineInfo is like AddLineColumnInfo with a column = 1 argument.
+// addLineInfo is like AddLineColumnInfo with a column = 1 argument.
 // It is here for backward-compatibility for code prior to Go 1.11.
 //
-func (f *File) AddLineInfo(offset int, filename string, line int) {
-	f.AddLineColumnInfo(offset, filename, line, 1)
+// deprecated: Part of the original Go implementation; not needed.
+func (f *File) addLineInfo(offset int, filename string, line int) {
+	f.addLineColumnInfo(offset, filename, line, 1)
 }
 
-// AddLineColumnInfo adds alternative file, line, and column number
+// addLineColumnInfo adds alternative file, line, and column number
 // information for a given file offset. The offset must be larger
 // than the offset for the previously added alternative line info
 // and smaller than the file size; otherwise the information is
 // ignored.
 //
-// AddLineColumnInfo is typically used to register alternative position
+// addLineColumnInfo is typically used to register alternative position
 // information for line directives such as //line filename:line:column.
 //
-func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) {
+func (f *File) addLineColumnInfo(offset int, filename string, line, column int) {
 	f.mutex.Lock()
 	if i := len(f.infos); i == 0 || f.infos[i-1].Offset < offset && offset < f.size {
 		f.infos = append(f.infos, lineInfo{offset, filename, line, column})
@@ -361,10 +376,17 @@ func (f *File) Pos(offset int) Pos {
 // f.Offset(f.Pos(offset)) == offset.
 //
 func (f *File) Offset(p Pos) int {
-	if int(p) < f.base || int(p) > f.base+f.size {
-		panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
+	if err := f.checkPos(p); err != nil {
+		panic(err)
 	}
 	return int(p) - f.base
+}
+
+func (f *File) checkPos(p Pos) error {
+	if int(p) < f.base || int(p) > f.base+f.size {
+		return fmt.Errorf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size)
+	}
+	return nil
 }
 
 // Line returns the line number for the given file position p;
@@ -419,16 +441,16 @@ func (f *File) unpack(offset int, adjusted bool) (filename string, lineColumn Li
 func (f *File) position(p Pos, adjusted bool) (pos Position) {
 	offset := int(p) - f.base
 	pos.offset = offset
-	pos.documentName, pos.lineColumn = f.unpack(offset, adjusted)
+	pos.fileName, pos.lineColumn = f.unpack(offset, adjusted)
 	return
 }
 
-// PositionFor returns the Position value for the given file position p.
+// positionFor returns the Position value for the given file position p.
 // If adjusted is set, the position may be adjusted by position-altering
 // line comments; otherwise those comments are ignored.
 // p must be a Pos value in f or NoPos.
 //
-func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
+func (f *File) positionFor(p Pos, adjusted bool) (pos Position) {
 	if p != NoPos {
 		if int(p) < f.base || int(p) > f.base+f.size {
 			panic(fmt.Sprintf("invalid Pos value %d (should be in [%d, %d[)", p, f.base, f.base+f.size))
@@ -442,29 +464,29 @@ func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {
 // Calling f.Position(p) is equivalent to calling f.PositionFor(p, true).
 //
 func (f *File) Position(p Pos) (pos Position) {
-	return f.PositionFor(p, true)
+	return f.positionFor(p, true)
 }
 
-// type File struct {
-// 	f *token.File
-// }
-// func (f *File) AddLine(offset int)                              { f.f.AddLine(offset) }
-// func (f *File) Base() int                                       { return f.f.Base() }
-// func (f *File) Line(p Pos) Line                                 { return LineFromOrdinal(f.f.Line(p.tokenPos())) }
-// func (f *File) LineCount() int                                  { return f.f.LineCount() }
-// func (f *File) LineStart(line Line) Pos                         { return Pos(f.f.LineStart(line.Ordinal())) }
-// func (f *File) MergeLine(line Line)                             { f.f.MergeLine(line.Ordinal()) }
-// func (f *File) Name() string                                    { return f.f.Name() }
-// func (f *File) Offset(p Pos) int                                { return f.f.Offset(p.tokenPos()) }
-// func (f *File) Pos(offset int) Pos                              { return Pos(f.f.Pos(offset)) }
-// func (f *File) Position(p Pos) (pos Position)                   {}
-// func (f *File) PositionFor(p Pos, adjusted bool) (pos Position) {}
-// func (f *File) SetLines(lines []int) bool                       {}
-// func (f *File) SetLinesForContent(content []byte)               {}
-// func (f *File) Size() int                                       {}
+// PosForLineColumn returns the position of the given (line, column) pair in the
+// file or NoPos if the (line, column) pair is out of bounds.
+func (f *File) PosForLineColumn(lc LineColumn) Pos {
+	if !lc.Line().IsValid() || !lc.Column().IsValid() {
+		return NoPos
+	}
 
-//func (f *File) AddLineColumnInfo(offset int, filename string, line, column int) { f.f.AddLineColumnInfo(offset, filename, line, column)}
-// func (f *File) AddLineInfo(offset int, filename string, line int)               {}
+	f.mutex.Lock()
+	defer f.mutex.Unlock()
+
+	lineStartPos := f.lineStartOrNoPosWithMutexHeld(lc.line)
+	if lineStartPos == NoPos {
+		return NoPos
+	}
+	finalPos := lineStartPos + Pos(lc.Column().Offset())
+	if f.checkPos(finalPos) != nil {
+		return NoPos
+	}
+	return finalPos
+}
 
 // Pos is a compact encoding of a source position within a file set.
 // It can be converted into a Position for a more convenient, but much
@@ -491,7 +513,7 @@ func (f *File) Position(p Pos) (pos Position) {
 //
 type Pos int
 
-// The zero value for Pos is NoPos; there is no file and line information
+// NoPos is the zero value for Pos; there is no file and line information
 // associated with it, and NoPos.IsValid() is false. NoPos is always
 // smaller than any other Pos value. The corresponding Position value
 // for NoPos is the zero value for Position.
@@ -507,18 +529,25 @@ func (p Pos) IsValid() bool {
 // including the file, line, and column location.
 // A Position is valid if the line number is > 0.
 type Position struct {
-	documentName string     // filename, if any
-	offset       int        // offset, starting at 0
-	lineColumn   LineColumn // line and column numbers, may be invalid
+	fileName   string     // filename, if any
+	offset     int        // offset, starting at 0
+	lineColumn LineColumn // line and column numbers, may be invalid
 }
 
-func (p Position) DocumentName() string { return p.documentName }
-func (p Position) Offset() int          { return p.offset }
-func (p Position) Line() Line           { return p.lineColumn.Line() }
-func (p Position) Column() Column       { return p.lineColumn.Column() }
+// FileName returns the fileName of the position.
+func (p Position) FileName() string { return p.fileName }
+
+// Offset returns the offset of the position.
+func (p Position) Offset() int { return p.offset }
+
+// Line returns the line of the position.
+func (p Position) Line() Line { return p.lineColumn.Line() }
+
+// Column returns the column of the position.
+func (p Position) Column() Column { return p.lineColumn.Column() }
 
 // IsValid reports whether the position is valid.
-func (pos *Position) IsValid() bool { return pos.Line().IsValid() }
+func (p Position) IsValid() bool { return p.Line().IsValid() }
 
 // String returns a string in one of several forms:
 //
@@ -529,15 +558,15 @@ func (pos *Position) IsValid() bool { return pos.Line().IsValid() }
 //	file                invalid position with file name
 //	-                   invalid position without file name
 //
-func (pos Position) String() string {
-	s := pos.DocumentName()
-	if pos.IsValid() {
+func (p Position) String() string {
+	s := p.FileName()
+	if p.IsValid() {
 		if s != "" {
 			s += ":"
 		}
-		s += fmt.Sprintf("%d", pos.Line().Ordinal())
-		if pos.Column().IsValid() {
-			s += fmt.Sprintf(":%d", pos.Column().Ordinal())
+		s += fmt.Sprintf("%d", p.Line().Ordinal())
+		if p.Column().IsValid() {
+			s += fmt.Sprintf(":%d", p.Column().Ordinal())
 		}
 	}
 	if s == "" {
