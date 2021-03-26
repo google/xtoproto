@@ -405,9 +405,13 @@ func searchLineInfos(a []lineInfo, x int) int {
 // possibly adjusted by //line comments; otherwise those comments are ignored.
 //
 func (f *File) unpack(offset int, adjusted bool) (filename string, lineColumn LineColumn) {
-	var line, column int
 	f.mutex.Lock()
 	defer f.mutex.Unlock()
+	return f.unpackWhileMutexHeld(offset, adjusted)
+}
+
+func (f *File) unpackWhileMutexHeld(offset int, adjusted bool) (filename string, lineColumn LineColumn) {
+	var line, column int
 	filename = f.name
 	if i := searchInts(f.lines, offset); i >= 0 {
 		line, column = i+1, offset-f.lines[i]+1
@@ -523,6 +527,40 @@ const NoPos Pos = 0
 // IsValid reports whether the position is valid.
 func (p Pos) IsValid() bool {
 	return p != NoPos
+}
+
+// Range is a range within a single file.
+//
+// The range specifies all of the characters in the interval [r.Start(),
+// r.End()).
+type Range struct {
+	f                            *File
+	startInclusive, endExclusive Pos
+}
+
+// Start returns the start position of the range.
+func (r *Range) Start() Position {
+	return r.f.Position(r.StartPos())
+}
+
+// End returns the end position of the range.
+func (r *Range) End() Position {
+	return r.f.Position(r.EndPos())
+}
+
+// StartPos returns the start position of the range.
+func (r *Range) StartPos() Pos {
+	return r.startInclusive
+}
+
+// EndPos returns the end position of the range.
+func (r *Range) EndPos() Pos {
+	return r.endExclusive
+}
+
+// File returns the file within which the range is specified.
+func (r *Range) File() *File {
+	return r.f
 }
 
 // Position describes an arbitrary source position
