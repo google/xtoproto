@@ -1,0 +1,12 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "go_default_library",
+    srcs = [
+        "form.go",
+        "form_sourcefile.go",
+    ],
+    importpath = "github.com/google/xtoproto/sexpr/form",
+    visibility = ["//visibility:public"],
+    deps = ["//textpos:go_default_library"],
+)
