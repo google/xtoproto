@@ -14,20 +14,16 @@ import "go/constant"
 // custom FormProvider to be specified that will create a Form for a given
 // underlying value and Sourcespan.
 type Form interface {
-	SourceSpan() SourceSpan
+	SourcePosition() SourcePosition
 	Value() interface{}
 }
 
-// ListForm implements Form for a form comprised of an ordered list of subforms.
+// List implements Form for a form comprised of an ordered list of subforms.
 //
-// The s-expression `("abc" xyz)` would be expected to be read as a ListForm
+// The s-expression `("abc" xyz)` would be expected to be read as a List
 // with two subforms.
-type ListForm interface {
+type List interface {
 	Form
-	// Subforms returns the ordered list of forms that comprise the list.
-	//
-	// The list of forms should be substantive.
-	Subforms() []Form
 
 	// Len returns the length of the list. It is equivalent to len(Subforms())
 	// but may be more efficient.
@@ -38,33 +34,56 @@ type ListForm interface {
 	Nth(n int) Form
 }
 
-// StringForm is an interface for a form with an underlying string literal
+// Subforms returns the ordered list of forms that comprise the list.
+//
+// The list of forms should be substantive.
+func Subforms(f List) []Form {
+	var out []Form
+	for i := 0; i < f.Len(); i++ {
+		out = append(out, f.Nth(i))
+	}
+	return out
+}
+
+// String is an interface for a form with an underlying string literal
 // representation.
 //
 // This method should not be implemented by other types of forms, even if they
 // can be represented as a string. For example, a number should implemented
-// NumberForm and not StringForm.
-type StringForm interface {
+// Number and not String.
+type String interface {
 	Form
 
-	// String Value returns the value of the form as a string literal.
+	// StringValue returns the value of the form as a string literal.
 	StringValue() string
 }
 
-// NumberForm is an interface for a form with an underlying number literal.
+// Number is an interface for a form with an underlying number literal.
 //
-// A NumberForm is roughly equivalent to an untyped number const in Go.
-type NumberForm interface {
+// A Number is roughly equivalent to an untyped number const in Go.
+type Number interface {
 	Form
 
-	// NumberValue returns the number using go's constant package. The
+	// Number returns the number using go's constant package. The
 	// value should be one of `int64, *big.Int, *big.Float, *big.Rat`.
-	NumberValue() constant.Value
+	Number() constant.Value
 }
 
-// ValuelessForm is a form that should be ignored in most contexts. Examples of
+// Symbol is an interface for a form with an underlying Symbol literal.
+//
+// A Symbol is roughly equivalent to an untyped Symbol const in Go.
+type Symbol interface {
+	Form
+
+	// SymbolLiteral returns the symbol as a string. This may be different from the
+	// symbol as it appeared in the source text if the reader changes the
+	// literal form using some sort of normalization.
+	SymbolLiteral() string
+}
+
+// Valueless is a form that should be ignored in most contexts. Examples of
 // valueless forms are comments and whitespace.
-type ValuelessForm interface {
+type Valueless interface {
 	Form
 
 	// The Valueless function indicates that this form should be ignored
@@ -72,29 +91,26 @@ type ValuelessForm interface {
 	Valueless()
 }
 
-// CommentForm is an interface for a form with an underlying comment literal.
-type CommentForm interface {
-	ValuelessForm
+// Comment is an interface for a form with an underlying comment literal.
+type Comment interface {
+	Valueless
 
-	// Comment returns the comment literal without delimiters. Note that
-	// multiple CommentForms may comprise a single logical comment block
+	// Comment returns the comment literal including delimiters.
+	//
+	// Note that multiple Comments may comprise a single logical comment block
 	// separated by whitespace, as the whitespace forms will be parsed
 	// separately.
-	Comment() CommentText
+	CommentLiteral() string
 }
 
 // WhitespaceText contains the contents of a Whitespace literal.
 type WhitespaceText string
 
-// WhitespaceForm is an interface for a form with an underlying string literal
+// Whitespace is an interface for a form with an underlying string literal
 // representation.
-type WhitespaceForm interface {
-	ValuelessForm
+type Whitespace interface {
+	Valueless
 
 	// Whitespace returns the whiespace literal.
 	Whitespace() WhitespaceText
 }
-
-// CommentText contains the contents of a comment. This value excludes
-// the characters used to delimit the comment, such as '//', '/*', and '*/'.
-type CommentText string
