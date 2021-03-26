@@ -1,12 +1,12 @@
 // Package sexpr parses s-expressions in a manner similar to the Common Lisp
 // reader. It supports typical s-expression syntax and customization.
 //
-// Textual expressions are called "forms" by this package and represented with
-// the Form interface. Form provides a Value() method for obtaining the
-// underlying value. There are specific interfaces like `StringForm`,
-// `NumberForm`, `CommentForm`, etc. corresponding to typical s-expression
-// types. Type switches and assertions may be used to cast a form to a suitable
-// type.
+// The elements of S-Expressions are called "forms" by this package and
+// represented with the Form interface in the "form" subpackage. Form provides a
+// Value() method for obtaining the underlying value. There are specific
+// interfaces like `String`, `Number`, `Comment`, and `SymbolForm` corresponding
+// to typical s-expression types. Type switches and assertions may be used to
+// cast a Form to a suitable type.
 package sexpr
 
 import (

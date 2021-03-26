@@ -47,6 +47,7 @@ func Test_strSourceFile(t *testing.T) {
 		// offsetToRowCol() tests
 		{"offsetToRowCol_1", rowCol{0, 1}, mustSourceFile("", "a\n").offsetToRowCol(1)},
 		{"offsetToRowCol_2", rowCol{1, 0}, mustSourceFile("", "a\n").offsetToRowCol(2)},
+		{"offsetToRowCol_utf1", rowCol{0, 1}, mustSourceFile("", "πxyz").offsetToRowCol(1)},
 		{
 			"hello-world.go",
 			rowCol{0, 0},

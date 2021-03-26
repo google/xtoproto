@@ -26,7 +26,7 @@ type FormFactory interface {
 	NewNumberForm(value constant.Value, span SourceSpan) (form.Number, error)
 
 	// NewSymbolForm returns a new Form for the provided symbol literal representation.
-	NewSymbolForm(literal string, span SourceSpan) (Form, error)
+	NewSymbolForm(literal string, span SourceSpan) (form.Symbol, error)
 
 	// NewStringForm returns a new StringForm for the provided literal representation.
 	NewStringForm(value string, span SourceSpan) (StringForm, error)
@@ -77,7 +77,7 @@ func (f *defaultFactory) NewNumberForm(value constant.Value, span SourceSpan) (f
 	return &numberForm{value, span}, nil
 }
 
-func (f *defaultFactory) NewSymbolForm(value string, span SourceSpan) (Form, error) {
+func (f *defaultFactory) NewSymbolForm(value string, span SourceSpan) (form.Symbol, error) {
 	return &symbolForm{value, span}, nil
 }
 
@@ -195,6 +195,10 @@ func (f *symbolForm) SourcePosition() SourceSpan {
 
 func (f *symbolForm) Value() interface{} {
 	return nil
+}
+
+func (f *symbolForm) SymbolLiteral() string {
+	return f.literal
 }
 
 type numberForm struct {
