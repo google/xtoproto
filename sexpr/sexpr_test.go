@@ -245,7 +245,7 @@ type readResult struct {
 
 func makeReadResult(f Form) readResult {
 	value := f.Value()
-	if lf, ok := f.(*listForm); ok {
+	if lf, ok := f.(*list); ok {
 		var vals []readResult
 		for _, x := range lf.val {
 			vals = append(vals, makeReadResult(x))
@@ -255,7 +255,7 @@ func makeReadResult(f Form) readResult {
 	if sf, ok := f.(*symbolForm); ok {
 		value = fmt.Sprintf("sym:%q", sf.literal)
 	}
-	return readResult{f.SourceSpan().String(), "", value}
+	return readResult{f.SourcePosition().String(), "", value}
 }
 
 func readAllForms(fr *FormReader) []readResult {

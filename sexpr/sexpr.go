@@ -11,11 +11,20 @@ package sexpr
 
 import (
 	"fmt"
-	"go/constant"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/google/xtoproto/sexpr/form"
 )
+
+type Form = form.Form
+type StringForm = form.String
+type ListForm = form.List
+type CommentForm = form.Comment
+type WhitespaceForm = form.Whitespace
+type ValuelessForm = form.Valueless
+type SourceSpan = form.SourcePosition
 
 // readerRequiredSymbol specifies one of the symbols needed by the the s-expression parser
 // to handle typical lisp-style s-expressions
@@ -28,102 +37,6 @@ const (
 	unquoteSplicingSymbol readerRequiredSymbol = "UNQUOTE-SPLICING" // ,@
 )
 
-// Form is a value that may have a corresponding textual representation in
-// a source code file. Forms parsed by this package have an S-expression
-// syntax unless the reader is customized.
-//
-// A Form has an underlying value, obtainable by calling Value(). For example,
-// the s-expression `"abc"` has an underlying value that is the string "abc".
-//
-// This package does not define any implementations of Form. FormReader allows a
-// custom FormProvider to be specified that will create a Form for a given
-// underlying value and Sourcespan.
-type Form interface {
-	SourceSpan() SourceSpan
-	Value() interface{}
-}
-
-// ListForm implements Form for a form comprised of an ordered list of subforms.
-//
-// The s-expression `("abc" xyz)` would be expected to be read as a ListForm
-// with two subforms.
-type ListForm interface {
-	Form
-	// Subforms returns the ordered list of forms that comprise the list.
-	//
-	// The list of forms should be substantive.
-	Subforms() []Form
-
-	// Len returns the length of the list. It is equivalent to len(Subforms())
-	// but may be more efficient.
-	Len() int
-
-	// Nth returns Subforms()[n]. It may panic if the length of the list is
-	// <= n.
-	Nth(n int) Form
-}
-
-// StringForm is an interface for a form with an underlying string literal
-// representation.
-//
-// This method should not be implemented by other types of forms, even if they
-// can be represented as a string. For example, a number should implemented
-// NumberForm and not StringForm.
-type StringForm interface {
-	Form
-
-	// String Value returns the value of the form as a string literal.
-	StringValue() string
-}
-
-// NumberForm is an interface for a form with an underlying number literal.
-//
-// A NumberForm is roughly equivalent to an untyped number const in Go.
-type NumberForm interface {
-	Form
-
-	// NumberValue returns the number using go's constant package. The
-	// value should be one of `int64, *big.Int, *big.Float, *big.Rat`.
-	NumberValue() constant.Value
-}
-
-// ValuelessForm is a form that should be ignored in most contexts. Examples of
-// valueless forms are comments and whitespace.
-type ValuelessForm interface {
-	Form
-
-	// The Valueless function indicates that this form should be ignored
-	// when read in most contexts. Examples of valueless forms are
-	Valueless()
-}
-
-// CommentForm is an interface for a form with an underlying comment literal.
-type CommentForm interface {
-	ValuelessForm
-
-	// Comment returns the comment literal without delimiters. Note that
-	// multiple CommentForms may comprise a single logical comment block
-	// separated by whitespace, as the whitespace forms will be parsed
-	// separately.
-	Comment() CommentText
-}
-
-// WhitespaceText contains the contents of a Whitespace literal.
-type WhitespaceText string
-
-// WhitespaceForm is an interface for a form with an underlying string literal
-// representation.
-type WhitespaceForm interface {
-	ValuelessForm
-
-	// Whitespace returns the whiespace literal.
-	Whitespace() WhitespaceText
-}
-
-// CommentText contains the contents of a comment. This value excludes
-// the characters used to delimit the comment, such as '//', '/*', and '*/'.
-type CommentText string
-
 type readTable map[rune]func(fr *FormReader) (ReaderMacroResult, error)
 
 // ReaderMacroResult is returned by custom reader macro functions.
@@ -134,7 +47,7 @@ type ReaderMacroResult interface {
 	Skip() bool
 
 	// The form read by the reader macro.
-	Form() Form
+	Form() form.Form
 }
 
 // FormReader reads a stream of S-Expressions.
@@ -144,6 +57,7 @@ type FormReader struct {
 	factory   FormFactory
 }
 
+// Option is used to configure a FormReader.
 type Option interface {
 	apply(*FormReader)
 }
@@ -250,7 +164,7 @@ func (fr *FormReader) errorfWithRangePosition(start, end cursorOffset, format st
 		fmt.Errorf(format, arg...))
 }
 
-func (fr *FormReader) makeSpan(start, end cursorOffset) SourceSpan {
+func (fr *FormReader) makeSpan(start, end cursorOffset) *simpleSourceSpan {
 	return &simpleSourceSpan{fr.src.fileName(), fr.src.offsetToRowCol(start), fr.src.offsetToRowCol(end)}
 }
 
@@ -281,7 +195,7 @@ loop:
 	}
 
 	end := fr.src.cursorOffset()
-	return fr.factory.NewWhitespaceForm(WhitespaceText(literal.String()), fr.makeSpan(start, end))
+	return fr.factory.NewWhitespaceForm(literal.String(), fr.makeSpan(start, end))
 }
 
 func (fr *FormReader) readString() (StringForm, error) {
@@ -366,7 +280,7 @@ loop:
 	}
 
 	end := fr.src.cursorOffset()
-	return fr.factory.NewListForm(forms, fr.makeSpan(start, end))
+	return fr.factory.NewList(forms, fr.makeSpan(start, end))
 }
 
 func (fr *FormReader) readNumberSymbolOrComment() (Form, error) {
@@ -481,7 +395,7 @@ func (fr *FormReader) readPossibleComment(start cursorOffset) (CommentForm, bool
 			}
 		}
 		end := fr.src.cursorOffset()
-		c, err := fr.factory.NewCommentForm(CommentText(contents.String()), fr.makeSpan(start, end))
+		c, err := fr.factory.NewCommentForm(contents.String(), fr.makeSpan(start, end))
 		if err != nil {
 			return nil, false, err
 		}
@@ -501,7 +415,7 @@ func (fr *FormReader) readPossibleComment(start cursorOffset) (CommentForm, bool
 			contents.WriteRune(r)
 		}
 		end := fr.src.cursorOffset()
-		c, err := fr.factory.NewCommentForm(CommentText(contents.String()), fr.makeSpan(start, end))
+		c, err := fr.factory.NewCommentForm(contents.String(), fr.makeSpan(start, end))
 		if err != nil {
 			return nil, false, err
 		}
@@ -532,7 +446,7 @@ func registerQuoteMacroChars(fr *FormReader) {
 			return nil, err
 		}
 		end := fr.src.cursorOffset()
-		f, err := fr.factory.NewListForm([]Form{quoteSym, quotedValue}, fr.makeSpan(start, end))
+		f, err := fr.factory.NewList([]Form{quoteSym, quotedValue}, fr.makeSpan(start, end))
 		if err != nil {
 			return nil, err
 		}

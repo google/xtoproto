@@ -3,6 +3,8 @@ package sexpr
 import (
 	"fmt"
 	"io"
+
+	"github.com/google/xtoproto/textpos"
 )
 
 type sourceFile interface {
@@ -170,20 +172,13 @@ func (sf *strSourceFile) lineStarts() []cursorOffset {
 	return ret
 }
 
-// SourceSpan is a continuous interval of positions within a text file.
-type SourceSpan interface {
-	// FileName is the name of the source file.
-	FileName() string
-	// String is a concise, human-readable representation of the span suitable
-	// for printing in error messages.
-	String() string
-	start() rowCol
-	end() rowCol
-}
-
 type simpleSourceSpan struct {
 	name string
 	s, e rowCol
+}
+
+func (span *simpleSourceSpan) Range() *textpos.Range {
+	return nil
 }
 
 func (span *simpleSourceSpan) FileName() string {

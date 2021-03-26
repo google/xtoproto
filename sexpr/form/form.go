@@ -103,14 +103,11 @@ type Comment interface {
 	CommentLiteral() string
 }
 
-// WhitespaceText contains the contents of a Whitespace literal.
-type WhitespaceText string
-
 // Whitespace is an interface for a form with an underlying string literal
 // representation.
 type Whitespace interface {
 	Valueless
 
 	// Whitespace returns the whiespace literal.
-	Whitespace() WhitespaceText
+	Whitespace() string
 }
