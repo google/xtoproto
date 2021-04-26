@@ -15,7 +15,6 @@
 package csvcoder
 
 import (
-	"encoding/csv"
 	"fmt"
 	"io"
 	"reflect"
@@ -25,7 +24,7 @@ import (
 
 // FileParser is an object used to parse an entire CSV file.
 type FileParser struct {
-	r        *csv.Reader
+	r        recordsReader
 	filePath string
 	rt       *registeredType
 
@@ -36,14 +35,20 @@ type FileParser struct {
 	fatalErr error
 }
 
+// recordsReader is an interface of a reader that reads raw records from the
+// data source. For example, csv.Reader is a recordsReader.
+type recordsReader interface {
+	Read() ([]string, error)
+}
+
 // NewFileParser returns an object for parsing a set of records from a file.
 //
-// The input CSV reader will be used to read all rows. The path argument is only
+// The input recordsReader will be used to read all rows. The path argument is only
 // for error reporting purposes.
 //
 // The type of the recordPrototype should have been registered with a call to
 // RegisterRowStruct.
-func NewFileParser(r *csv.Reader, path string, recordPrototype interface{}) (*FileParser, error) {
+func NewFileParser(r recordsReader, path string, recordPrototype interface{}) (*FileParser, error) {
 	rt, err := getOrRegisterType(reflect.ValueOf(recordPrototype).Type())
 	if err != nil {
 		return nil, fmt.Errorf("could not find or infer coder for type %v: %w", reflect.ValueOf(recordPrototype).Type(), err)
