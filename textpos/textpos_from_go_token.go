@@ -310,7 +310,7 @@ func (f *File) lineStartWithMutexHeld(line Line) Pos {
 		panic(fmt.Sprintf("invalid line %s", line))
 	}
 	if line.Ordinal() > len(f.lines) {
-		panic(fmt.Sprintf("invalid line %s", line, len(f.lines)))
+		panic(fmt.Sprintf("invalid line %s, expected max %d", line, len(f.lines)))
 	}
 	return Pos(f.base + f.lines[line.Offset()])
 }
