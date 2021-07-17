@@ -1,0 +1,26 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "go_default_library",
+    srcs = ["wirepath.go"],
+    importpath = "github.com/google/xtoproto/wirepath",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//proto/wirepath:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+        "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",
+    ],
+)
+
+go_test(
+    name = "go_default_test",
+    srcs = ["wirepath_test.go"],
+    embed = [":go_default_library"],
+    deps = [
+        "//proto/recordtoproto:go_default_library",
+        "//proto/wirepath:go_default_library",
+        "@com_github_google_go_cmp//cmp:go_default_library",
+        "@org_golang_google_protobuf//proto:go_default_library",
+        "@org_golang_google_protobuf//testing/protocmp:go_default_library",
+    ],
+)
