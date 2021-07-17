@@ -1,0 +1,75 @@
+// Copyright 2020 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package xtoproto.wirepath;
+
+option go_package = "github.com/google/xtoproto/proto/wirepath";
+
+// WirePath specifies the location of a protocol buffer value within a protocol
+// buffer message.
+message WirePath {
+    oneof element {
+        // The number of the field. Must be specified.
+        int32 field_number = 1;
+
+        // If field number is unspecified, special path may be set.
+        SpecialPath special_path = 20;
+    }
+
+    // The name of the field. Optional. For flexibility, this value is not
+    // checked against the message in any way. This allows renaming a field
+    // or deprecating a field and creating a new field with the same name.
+    string field_name = 2;
+
+    // If the field value F is a message type, a child WirePath F' may
+    // be used to refer to the location within the submessage. If the F is a
+    // repeated field or map, slot must be specified for child to be valid.
+    WirePath child = 3;
+
+    // If the field is a repeated field or a map field, slot may be used to
+    // specify a location within the field. If slot is unspecified, the WirePath
+    // refers to the value of the field as a whole.
+    oneof slot {
+        // If the field is a repeated field, this can be used to specify the
+        // index into the repeated.
+        int64 repeated_field_offset = 4;
+
+        // One of these values can be used to refer to the location of the value
+        // key of a map field.
+        string map_key_string = 5;
+        int32 map_key_int32 = 6;
+        int64 map_key_int64 = 7;
+        bytes map_key_bytes = 8;
+        double map_key_double = 9;
+        float map_key_float = 10;
+        uint32 map_key_uint32 = 11;
+        uint64 map_key_uint64 = 12;
+        sint32 map_key_sint32 = 13;
+        sint64 map_key_sint64 = 14;
+        fixed32 map_key_fixed32 = 15;
+        fixed64 map_key_fixed64 = 16;
+        sfixed32 map_key_sfixed32 = 17;
+        sfixed64 map_key_sfixed64 = 18;
+        bool map_key_bool = 19;
+    }
+
+    enum SpecialPath {
+        SPECIAL_PATH_UNSPECIFIED = 0;
+        // SELF refers to the value itself. If field_number and special_path are
+        // unset, SELF is implied.
+        SELF = 1;
+    }
+}
