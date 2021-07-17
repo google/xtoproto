@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option go_package = "github.com/google/xtoproto/proto/wirepath/testproto";
+
+package xtoproto.wirepath.internal;
+
+message Example {
+  int32 column_index = 1;
+  string col_name = 2;
+  string proto_name = 3;
+  string proto_type = 4;
+  int32 proto_tag = 5;
+  bool ignored = 6;
+
+  repeated string proto_imports = 7;
+  repeated Example children = 8;
+  Example child = 10;
+
+  map<int32, string> modbus_values = 9;
+  map<string, Example> named_children = 11;
+}

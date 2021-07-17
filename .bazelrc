@@ -1,0 +1,4 @@
+# Make short tests timeout in 5 seconds instead of 1 minute.
+# See https://docs.bazel.build/versions/main/command-line-reference.html
+# and https://docs.bazel.build/versions/main/be/common-definitions.html#common-attributes-tests
+test --test_timeout=5,300,900,3600
