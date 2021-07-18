@@ -23,6 +23,7 @@ go_test(
     srcs = ["wirepath_test.go"],
     embed = [":go_default_library"],
     deps = [
+        "//internal/protoreflectcmp:go_default_library",
         "//proto/wirepath:go_default_library",
         "//proto/wirepath/testproto:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
