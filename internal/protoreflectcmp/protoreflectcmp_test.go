@@ -19,6 +19,7 @@ func TestSliceComparison(t *testing.T) {
 		name        string
 		left, right interface{}
 		wantEqual   bool
+		opts        []Option
 	}{
 		{
 			name: "list and slice - no diff",
@@ -53,7 +54,20 @@ func TestSliceComparison(t *testing.T) {
 				&testproto.Example{ColName: "one"},
 				&testproto.Example{ColName: "two"},
 			},
+			wantEqual: false,
+		},
+		{
+			name: "list and slice - generic []proto.Message comparison",
+			left: newListOfMessages(
+				&testproto.Example{ColName: "one"},
+				&testproto.Example{ColName: "two"},
+			),
+			right: []proto.Message{
+				&testproto.Example{ColName: "one"},
+				&testproto.Example{ColName: "two"},
+			},
 			wantEqual: true,
+			opts:      []Option{IgnoreElementType()},
 		},
 		{
 			name: "list and list - no diff",
@@ -95,8 +109,8 @@ func TestSliceComparison(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			equal := cmp.Equal(tt.left, tt.right, protocmp.Transform(), Transform())
-			diff := cmp.Diff(tt.left, tt.right, protocmp.Transform(), Transform())
+			equal := cmp.Equal(tt.left, tt.right, protocmp.Transform(), Transform(tt.opts...))
+			diff := cmp.Diff(tt.left, tt.right, protocmp.Transform(), Transform(tt.opts...))
 
 			if equal != tt.wantEqual {
 				t.Errorf("got cmp.Equal(...) = %v, want %v", equal, tt.wantEqual)
