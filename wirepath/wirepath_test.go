@@ -4,12 +4,10 @@
 package wirepath
 
 import (
-	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
 
-	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/xtoproto/proto/wirepath"
 	"github.com/google/xtoproto/proto/wirepath/testproto"
@@ -142,12 +140,12 @@ func TestGetValue(t *testing.T) {
 			},
 			want: func() protoreflect.List {
 				l := newEZlist(&testproto.Example{})
+				l.Append(protoreflect.ValueOfMessage((&testproto.Example{}).ProtoReflect()))
+				l.Append(protoreflect.ValueOfMessage((&testproto.Example{
+					ProtoTag: 42,
+				}).ProtoReflect()))
 				return l
 			}(),
-			// want: []*testproto.Example{
-			// 	{},
-			// 	{ProtoTag: 42},
-			// },
 		},
 	}
 	for _, tt := range tests {
@@ -490,22 +488,42 @@ func TestParseProtobufStringLiteral(t *testing.T) {
 
 var (
 	cmpProtoReflectOpt = cmp.FilterValues(func(a, b interface{}) bool {
-		_, ok1 := a.(protoreflect.List)
-		_, ok2 := a.(protoreflect.List)
-		glog.Infof("filtervalues called on %v, %v", reflect.ValueOf(a), reflect.ValueOf(b))
-		return ok1 && ok2
+		asymmetric := func(a, b interface{}) bool {
+			list, ok := a.(protoreflect.List)
+			if !ok {
+				return false
+			}
+			if b == nil || reflect.TypeOf(b).Kind() != reflect.Slice {
+				return false
+			}
+			// Now check that elements of a and b are both
+
+			return bIsSlice
+		}
+		return asymmetric(a, b) || asymmetric(b, a)
 	}, reflectListTransform)
 
-	reflectListTransform = cmp.Transformer("listToSlice", func(list protoreflect.List) interface{} {
+	reflectListTransform = cmp.Transformer("listToSlice", func(x interface{}) interface{} {
+		list := x.(protoreflect.List)
 		if !list.IsValid() {
 			return nil
 		}
-		elemType := reflect.TypeOf(list.NewElement().Interface())
-		out := reflect.MakeSlice(elemType, list.Len(), list.Len())
-		for i := 0; i < list.Len(); i++ {
-			out.Index(i).Set(reflect.ValueOf(list.Get(i).Interface()))
+		switch list.NewElement().Interface().(type) {
+		case protoreflect.ProtoMessage:
+			out := make([]proto.Message, list.Len())
+			for i := 0; i < list.Len(); i++ {
+				out[i] = list.Get(i).Message().Interface()
+			}
+			return out
+		default:
+			return list
 		}
-		return out.Interface()
+		// elemType := reflect.TypeOf(list.NewElement().Interface())
+		// out := reflect.MakeSlice(reflect.SliceOf(elemType), list.Len(), list.Len())
+		// for i := 0; i < list.Len(); i++ {
+		// 	out.Index(i).Set(reflect.ValueOf(list.Get(i).Interface()))
+		// }
+		// return out.Interface()
 	})
 )
 
@@ -517,18 +535,6 @@ var transform3 = cmp.Transformer("listToSlice", func(list protoreflect.List) []p
 	return out
 })
 
-var transform2 = cmp.Comparer(func(a, b protoreflect.List) bool {
-	//out := make([]protoreflect.Value, list.Len())
-	panic(fmt.Sprintf("comparing %v and %v", a, b))
-	// if a.Len() != b.Len() {
-	// 	return false
-	// }
-	// for i := 0; i < list.Len(); i++ {
-	// 	out[i] = list.Get(i)
-	// }
-	// return out
-})
-
 type ezList struct {
 	slice   []protoreflect.Value
 	newElem func() protoreflect.Value
@@ -538,7 +544,7 @@ func newEZlist(prototype proto.Message) *ezList {
 	return &ezList{
 		nil,
 		func() protoreflect.Value {
-			return protoreflect.ValueOf(proto.Clone(prototype))
+			return protoreflect.ValueOfMessage(proto.Clone(prototype).ProtoReflect())
 		},
 	}
 }

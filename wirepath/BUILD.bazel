@@ -25,7 +25,6 @@ go_test(
     deps = [
         "//proto/wirepath:go_default_library",
         "//proto/wirepath/testproto:go_default_library",
-        "@com_github_golang_glog//:go_default_library",
         "@com_github_google_go_cmp//cmp:go_default_library",
         "@org_golang_google_protobuf//proto:go_default_library",
         "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",
