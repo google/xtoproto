@@ -90,10 +90,7 @@ func getValue(ctx *getValueContext) (protoreflect.Value, error) {
 		immediateValue = m.Get(fieldDescriptor)
 	}
 	if p.proto.GetSlot() != nil {
-		slotIsMapKey := false
-		var mapKey protoreflect.MapKey
-		switch slot := p.proto.GetSlot().(type) {
-		case *pb.WirePath_RepeatedFieldOffset:
+		if slot, slotIsRepeatedFieldOffset := p.proto.GetSlot().(*pb.WirePath_RepeatedFieldOffset); slotIsRepeatedFieldOffset {
 			list, ok := immediateValue.Interface().(protoreflect.List)
 			if !ok {
 				return protoreflect.Value{}, ctx.errorf("path references element %d of a non-repeated field", slot)
@@ -101,69 +98,21 @@ func getValue(ctx *getValueContext) (protoreflect.Value, error) {
 			if int(slot.RepeatedFieldOffset) >= list.Len() {
 				return protoreflect.Value{}, ctx.errorf("%d is out of range (repeated field length = %d)", slot, list.Len())
 			}
-			return list.Get(int(slot.RepeatedFieldOffset)), nil
+			immediateValue = list.Get(int(slot.RepeatedFieldOffset))
+		} else if mapKey := slotMapKeyValue(p); mapKey.IsValid() {
+			// mapKey is valid if the slot specifies a map key
+			valueIsMap := func() bool {
+				_, ok := immediateValue.Interface().(protoreflect.Map)
+				return ok
+			}
 
-		case *pb.WirePath_MapKeyString:
-			slotIsMapKey = true
-			mapKey = protoreflect.MapKey(protoreflect.ValueOf(slot.MapKeyString))
-
-		case *pb.WirePath_MapKeyInt32:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeyInt32).MapKey()
-
-		case *pb.WirePath_MapKeyInt64:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeyInt64).MapKey()
-
-		case *pb.WirePath_MapKeyUint32:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeyUint32).MapKey()
-
-		case *pb.WirePath_MapKeyUint64:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeyUint64).MapKey()
-
-		case *pb.WirePath_MapKeySint32:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeySint32).MapKey()
-
-		case *pb.WirePath_MapKeySint64:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeySint64).MapKey()
-
-		case *pb.WirePath_MapKeyFixed32:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeyFixed32).MapKey()
-
-		case *pb.WirePath_MapKeyFixed64:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeyFixed64).MapKey()
-
-		case *pb.WirePath_MapKeySfixed32:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeySfixed32).MapKey()
-
-		case *pb.WirePath_MapKeySfixed64:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeySfixed64).MapKey()
-
-		case *pb.WirePath_MapKeyBool:
-			slotIsMapKey = true
-			mapKey = protoreflect.ValueOf(slot.MapKeyBool).MapKey()
-
-		default:
-			return protoreflect.Value{}, ctx.errorf("unsupported slot type: %v", p.proto.GetSlot())
-		}
-
-		isMap := func() bool {
-			_, ok := immediateValue.Interface().(protoreflect.Map)
-			return ok
-		}
-
-		if slotIsMapKey && !isMap() {
-			return protoreflect.Value{}, ctx.errorf("tried to get value of map key %v of value that is not a Map", mapKey.Interface())
-		} else if slotIsMapKey {
+			if mapKey.IsValid() && !valueIsMap() {
+				return protoreflect.Value{}, ctx.errorf("tried to get value of map key %v of value that is not a Map", mapKey.Interface())
+			}
 			immediateValue = immediateValue.Map().Get(mapKey)
+
+		} else {
+			return protoreflect.Value{}, ctx.errorf("unsupported slot type: %v", p.proto.GetSlot())
 		}
 	}
 
@@ -186,6 +135,49 @@ func getValue(ctx *getValueContext) (protoreflect.Value, error) {
 		withinValue: childMessage.Interface(),
 	}
 	return getValue(newCtx)
+}
+
+func slotMapKeyValue(p *WirePath) protoreflect.MapKey {
+	switch slot := p.proto.GetSlot().(type) {
+	case *pb.WirePath_MapKeyString:
+		return protoreflect.MapKey(protoreflect.ValueOf(slot.MapKeyString))
+
+	case *pb.WirePath_MapKeyInt32:
+		return protoreflect.ValueOf(slot.MapKeyInt32).MapKey()
+
+	case *pb.WirePath_MapKeyInt64:
+		return protoreflect.ValueOf(slot.MapKeyInt64).MapKey()
+
+	case *pb.WirePath_MapKeyUint32:
+		return protoreflect.ValueOf(slot.MapKeyUint32).MapKey()
+
+	case *pb.WirePath_MapKeyUint64:
+		return protoreflect.ValueOf(slot.MapKeyUint64).MapKey()
+
+	case *pb.WirePath_MapKeySint32:
+		return protoreflect.ValueOf(slot.MapKeySint32).MapKey()
+
+	case *pb.WirePath_MapKeySint64:
+		return protoreflect.ValueOf(slot.MapKeySint64).MapKey()
+
+	case *pb.WirePath_MapKeyFixed32:
+		return protoreflect.ValueOf(slot.MapKeyFixed32).MapKey()
+
+	case *pb.WirePath_MapKeyFixed64:
+		return protoreflect.ValueOf(slot.MapKeyFixed64).MapKey()
+
+	case *pb.WirePath_MapKeySfixed32:
+		return protoreflect.ValueOf(slot.MapKeySfixed32).MapKey()
+
+	case *pb.WirePath_MapKeySfixed64:
+		return protoreflect.ValueOf(slot.MapKeySfixed64).MapKey()
+
+	case *pb.WirePath_MapKeyBool:
+		return protoreflect.ValueOf(slot.MapKeyBool).MapKey()
+
+	default:
+		return protoreflect.MapKey{}
+	}
 }
 
 func debugString(path *WirePath, evaluatedAgainstValue protoreflect.Value, formatOpts *pathFormatOptions) string {
