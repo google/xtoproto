@@ -1,14 +1,14 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary", "go_library")
 
 go_library(
-    name = "go_default_library",
+    name = "generate_pb_go_files_lib",
     srcs = ["generate_pb_go_files.go"],
     importpath = "github.com/google/xtoproto/releasing/generate_pb_go_files",
     visibility = ["//visibility:private"],
     deps = [
-        "@com_github_golang_glog//:go_default_library",
+        "@com_github_golang_glog//:glog",
         "@io_bazel_rules_go//go/tools/bazel:go_default_library",
-        "@org_golang_x_sync//errgroup:go_default_library",
+        "@org_golang_x_sync//errgroup",
     ],
 )
 
@@ -17,7 +17,7 @@ go_binary(
     data = [
         ":generated_sources",
     ],
-    embed = [":go_default_library"],
+    embed = [":generate_pb_go_files_lib"],
     visibility = ["//visibility:public"],
 )
 

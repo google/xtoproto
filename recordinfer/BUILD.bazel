@@ -1,7 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "go_default_library",
+    name = "recordinfer",
     srcs = [
         "recordinfer.go",
         "recordinfer_numbers.go",
@@ -11,17 +11,19 @@ go_library(
     importpath = "github.com/google/xtoproto/recordinfer",
     visibility = ["//visibility:public"],
     deps = [
+        "//proto/recordtoproto",
         "@com_github_golang_protobuf//proto:go_default_library",
-        "@com_github_stoewer_go_strcase//:go_default_library",
+        "@com_github_stoewer_go_strcase//:go-strcase",
     ],
 )
 
 go_test(
-    name = "go_default_test",
+    name = "recordinfer_test",
     srcs = ["recordinfer_test.go"],
-    embed = [":go_default_library"],
+    embed = [":recordinfer"],
     deps = [
-        "@com_github_google_go_cmp//cmp:go_default_library",
-        "@org_golang_google_protobuf//testing/protocmp:go_default_library",
+        "//proto/recordtoproto",
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_google_protobuf//testing/protocmp",
     ],
 )

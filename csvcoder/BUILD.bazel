@@ -1,7 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "go_default_library",
+    name = "csvcoder",
     srcs = [
         "csvcoder_cell.go",
         "csvcoder_file.go",
@@ -10,18 +10,18 @@ go_library(
     ],
     importpath = "github.com/google/xtoproto/csvcoder",
     visibility = ["//visibility:public"],
-    deps = ["//textcoder:go_default_library"],
+    deps = ["//textcoder"],
 )
 
 go_test(
-    name = "go_default_test",
+    name = "csvcoder_test",
     srcs = [
         "csvcoder_examples_test.go",
         "csvcoder_test.go",
     ],
-    embed = [":go_default_library"],
+    embed = [":csvcoder"],
     deps = [
-        "//textcoder:go_default_library",
-        "@com_github_google_go_cmp//cmp:go_default_library",
+        "//textcoder",
+        "@com_github_google_go_cmp//cmp",
     ],
 )

@@ -1,7 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "go_default_library",
+    name = "csvtoproto",
     srcs = [
         "csvtoproto.go",
         "csvtoproto_go_codegen.go",
@@ -9,8 +9,9 @@ go_library(
     importpath = "github.com/google/xtoproto/csvtoproto",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_golang_glog//:go_default_library",
-        "@com_github_mitchellh_go_wordwrap//:go_default_library",
-        "@com_github_stoewer_go_strcase//:go_default_library",
+        "//proto/recordtoproto",
+        "@com_github_golang_glog//:glog",
+        "@com_github_mitchellh_go_wordwrap//:go-wordwrap",
+        "@com_github_stoewer_go_strcase//:go-strcase",
     ],
 )

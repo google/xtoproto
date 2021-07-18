@@ -1,7 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "go_default_library",
+    name = "xmlinfer",
     srcs = [
         "xmlinfer.go",
         "xmlinfer_string_fields.go",
@@ -9,8 +9,8 @@ go_library(
     importpath = "github.com/google/xtoproto/xmlinfer",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_jhump_protoreflect//desc/builder:go_default_library",
-        "@com_github_jhump_protoreflect//desc/protoprint:go_default_library",
-        "@com_github_stoewer_go_strcase//:go_default_library",
+        "@com_github_jhump_protoreflect//desc/builder",
+        "@com_github_jhump_protoreflect//desc/protoprint",
+        "@com_github_stoewer_go_strcase//:go-strcase",
     ],
 )

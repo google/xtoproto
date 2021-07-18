@@ -18,11 +18,11 @@ go_proto_library(
     importpath = "github.com/google/xtoproto/proto/service",
     proto = ":service_proto",
     visibility = ["//visibility:public"],
-    deps = ["//proto/recordtoproto:go_default_library"],
+    deps = ["//proto/recordtoproto"],
 )
 
 go_library(
-    name = "go_default_library",
+    name = "service",
     embed = [":service_go_proto"],
     importpath = "github.com/google/xtoproto/proto/service",
     visibility = ["//visibility:public"],

@@ -18,7 +18,7 @@ go_proto_library(
 )
 
 go_library(
-    name = "go_default_library",
+    name = "example02",
     embed = [":mycompany_mypackage_go_proto"],
     importpath = "github.com/google/xtoproto/examples/example02",
     visibility = ["//visibility:public"],
