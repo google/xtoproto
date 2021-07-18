@@ -18,7 +18,7 @@ const (
 	stringLiteralElement = `(?:[^"]|\\.)`
 	stringLiteral        = `(?:"` + stringLiteralElement + `*")`
 
-	signedDecimalLiteral = `[\+\-]?[1-9][0-9]*`
+	signedDecimalLiteral = `[\+\-]?(?:[1-9][0-9]*|0)`
 
 	// The only slashes that exist within a single path element will be inside of
 	// a string, so write a regexp that parses [^/*] plus any string literal.

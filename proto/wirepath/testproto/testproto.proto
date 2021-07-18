@@ -18,4 +18,9 @@ message Example {
 
   map<int32, string> modbus_values = 9;
   map<string, Example> named_children = 11;
+  map<bool, Friend> named_friends = 12;
+}
+
+message Friend {
+  string name = 20000;
 }
