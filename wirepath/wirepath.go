@@ -24,7 +24,8 @@ func (p *WirePath) String() string {
 	return debugString(p, protoreflect.Value{}, &pathFormatOptions{verboseErrors: true})
 }
 
-// Proto returns the protobuf representation of the WirePath object.
+// Proto returns the protobuf representation of the WirePath object. The value
+// should not be modified.
 func (p *WirePath) Proto() *pb.WirePath {
 	return p.proto
 }
@@ -37,6 +38,12 @@ func (p *WirePath) child() *WirePath {
 	return &WirePath{c}
 }
 
+func (p *WirePath) withoutChild() *WirePath {
+	outProto := proto.Clone(p.proto).(*pb.WirePath)
+	outProto.Child = nil
+	return &WirePath{outProto}
+}
+
 // FromProto returns a parsed and validated version of the argument.
 func FromProto(proto *pb.WirePath) (*WirePath, error) {
 	return &WirePath{proto}, nil
@@ -44,10 +51,31 @@ func FromProto(proto *pb.WirePath) (*WirePath, error) {
 
 // GetValue returns the value of some path within a protocol buffer message.
 func GetValue(p *WirePath, within proto.Message) (protoreflect.Value, error) {
-	return getValue(nil, p, within)
+	return getValue(&getValueContext{nil, p, within})
 }
 
-func getValue(parent, p *WirePath, within proto.Message) (protoreflect.Value, error) {
+type getValueContext struct {
+	parent      *getValueContext
+	path        *WirePath
+	withinValue proto.Message
+}
+
+func (c *getValueContext) string() string {
+	if c.parent == nil {
+		return debugString(c.path, protoreflect.ValueOfMessage(c.withinValue.ProtoReflect()), &pathFormatOptions{verboseErrors: true})
+	}
+	return c.parent.string()
+}
+
+func (c *getValueContext) errorf(format string, args ...interface{}) error {
+	allArgs := []interface{}{c.string()}
+	allArgs = append(allArgs, args...)
+	return fmt.Errorf("%s: "+format, allArgs...)
+}
+
+func getValue(ctx *getValueContext) (protoreflect.Value, error) {
+	p := ctx.path
+	within := ctx.withinValue
 	if p == nil || p.proto == nil {
 		return protoreflect.ValueOfMessage(within.ProtoReflect()), nil
 	}
@@ -68,10 +96,10 @@ func getValue(parent, p *WirePath, within proto.Message) (protoreflect.Value, er
 		case *pb.WirePath_RepeatedFieldOffset:
 			list, ok := immediateValue.Interface().(protoreflect.List)
 			if !ok {
-				return protoreflect.Value{}, fmt.Errorf("path references element %d of a non-repeated field", slot)
+				return protoreflect.Value{}, ctx.errorf("path references element %d of a non-repeated field", slot)
 			}
 			if int(slot.RepeatedFieldOffset) >= list.Len() {
-				return protoreflect.Value{}, fmt.Errorf("%d is out of range (repeated field length = %d)", slot, list.Len())
+				return protoreflect.Value{}, ctx.errorf("%d is out of range (repeated field length = %d)", slot, list.Len())
 			}
 			return list.Get(int(slot.RepeatedFieldOffset)), nil
 
@@ -124,7 +152,7 @@ func getValue(parent, p *WirePath, within proto.Message) (protoreflect.Value, er
 			mapKey = protoreflect.ValueOf(slot.MapKeyBool).MapKey()
 
 		default:
-			return protoreflect.Value{}, fmt.Errorf("unsupported slot type: %v", p.proto.GetSlot())
+			return protoreflect.Value{}, ctx.errorf("unsupported slot type: %v", p.proto.GetSlot())
 		}
 
 		isMap := func() bool {
@@ -133,7 +161,7 @@ func getValue(parent, p *WirePath, within proto.Message) (protoreflect.Value, er
 		}
 
 		if slotIsMapKey && !isMap() {
-			return protoreflect.Value{}, fmt.Errorf("tried to get value of map key %v of value that is not a Map", mapKey.Interface())
+			return protoreflect.Value{}, ctx.errorf("tried to get value of map key %v of value that is not a Map", mapKey.Interface())
 		} else if slotIsMapKey {
 			immediateValue = immediateValue.Map().Get(mapKey)
 		}
@@ -143,12 +171,21 @@ func getValue(parent, p *WirePath, within proto.Message) (protoreflect.Value, er
 	if child == nil {
 		return immediateValue, nil
 	}
-	childMessage, ok := immediateValue.Interface().(protoreflect.Message)
+	childWithinValue := immediateValue.Interface()
+	if childWithinValue == nil {
+		return protoreflect.Value{}, ctx.errorf("%s is nil, cannot evaluate remainder of expression %s", p.withoutChild().String(), child.String())
+	}
+	childMessage, ok := childWithinValue.(protoreflect.Message)
 	if !ok {
-		return protoreflect.Value{}, fmt.Errorf("value is not a message, can't get child path: %v", childMessage)
+		return protoreflect.Value{}, ctx.errorf("%q evaluted to %v, which is not a protobuf message; can't get child path %q", p.withoutChild(), childWithinValue, child)
 	}
 
-	return getValue(p, p.child(), immediateValue.Message().Interface())
+	newCtx := &getValueContext{
+		parent:      ctx,
+		path:        p.child(),
+		withinValue: childMessage.Interface(),
+	}
+	return getValue(newCtx)
 }
 
 func debugString(path *WirePath, evaluatedAgainstValue protoreflect.Value, formatOpts *pathFormatOptions) string {

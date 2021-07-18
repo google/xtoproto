@@ -55,11 +55,45 @@ func TestGetValue(t *testing.T) {
 		},
 		{
 			name: "d",
-			path: MustParse(`9[5:int32]/1`).Proto(),
+			path: MustParse(`9[5:int32]`).Proto(),
 			within: &testproto.Example{
 				ModbusValues: map[int32]string{5: "five"},
 			},
 			want: "five",
+		},
+		{
+			name: "field cannot exist on non message type",
+			path: MustParse(`9[5:int32]/5`).Proto(),
+			within: &testproto.Example{
+				ModbusValues: map[int32]string{5: "five"},
+			},
+			wantErr: true,
+		},
+		{
+			name:    "tried to get child of a map value for an entry that does not exist",
+			path:    MustParse(`11["child"]/4(proto_type)`).Proto(),
+			within:  &testproto.Example{},
+			wantErr: true,
+		},
+		{
+			name: "map value's field",
+			path: MustParse(`12[1:bool]/20000(ignored)`).Proto(),
+			within: &testproto.Example{
+				NamedFriends: map[bool]*testproto.Friend{
+					true: {Name: "Jaya"},
+				},
+			},
+			want: "Jaya",
+		},
+		{
+			name: "map value that does not exist as final path",
+			path: MustParse(`12[0:bool]`).Proto(),
+			within: &testproto.Example{
+				NamedFriends: map[bool]*testproto.Friend{
+					true: {Name: "Jaya"},
+				},
+			},
+			want: nil,
 		},
 	}
 	for _, tt := range tests {
