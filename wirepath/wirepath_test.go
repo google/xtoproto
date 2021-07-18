@@ -53,24 +53,18 @@ func TestGetValue(t *testing.T) {
 			},
 			want: "five",
 		},
-		// {
-		// 	name: "d",
-		// 	path: &wirepath.WirePath{
-		// 		Element: &wirepath.WirePath_FieldNumber{FieldNumber: 9},
-		// 		Slot:    &wirepath.WirePath_MapKeyInt32{MapKeyInt32: 5},
-		// 		Child: &wirepath.WirePath{
-		// 			Element: &wirepath.WirePath_FieldNumber{FieldNumber: 1},
-		// 		},
-		// 	},
-		// 	within: &testproto.Example{
-		// 		ModbusValues: map[int32]string{5: "five"},
-		// 	},
-		// 	want: "five",
-		// },
+		{
+			name: "d",
+			path: MustParse(`9[5:int32]/1`).Proto(),
+			within: &testproto.Example{
+				ModbusValues: map[int32]string{5: "five"},
+			},
+			want: "five",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed, err := Parse(tt.path)
+			parsed, err := FromProto(tt.path)
 			if err != nil {
 				t.Fatalf("failed to parse: %v", err)
 			}
@@ -201,7 +195,7 @@ func TestDebugString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed, err := Parse(tt.path)
+			parsed, err := FromProto(tt.path)
 			if err != nil {
 				t.Fatalf("failed to parse: %v", err)
 			}
