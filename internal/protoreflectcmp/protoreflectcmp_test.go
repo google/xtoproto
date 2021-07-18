@@ -150,7 +150,7 @@ func TestSliceAnalyze(t *testing.T) {
 				&testproto.Example{ColName: "two"},
 			},
 			want: summary{
-				Name:                   "<proto.Message slice>",
+				Name:                   "<proto.Message interface - see protoreflectcmp.IgnoreElementType>",
 				NormalizedSliceIsValid: true,
 			},
 		},
