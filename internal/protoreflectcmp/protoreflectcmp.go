@@ -12,6 +12,10 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+const (
+	genericMessageName = "<proto.Message interface - see protoreflectcmp.IgnoreElementType>"
+)
+
 // Transform returns a cmp.Option that will make protoreflect.List instances
 // comparable to slices of proto messages.
 //
@@ -36,6 +40,7 @@ func Transform(thisLibraryOpt ...Option) cmp.Option {
 	return opts
 }
 
+// Option configures the Transform function.
 type Option struct {
 	setParams func(p *params)
 }
@@ -159,7 +164,7 @@ func analyzeValue(v interface{}) analysis {
 					prototype := reflect.New(elementType).Elem().Interface().(proto.Message)
 					a.SliceMessageName = prototype.ProtoReflect().Descriptor().FullName()
 				} else {
-					a.SliceMessageName = protoreflect.FullName("<proto.Message slice>")
+					a.SliceMessageName = protoreflect.FullName(genericMessageName)
 				}
 			}
 
