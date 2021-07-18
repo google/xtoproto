@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/golang/glog"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/xtoproto/proto/wirepath"
 	"github.com/google/xtoproto/proto/wirepath/testproto"
@@ -491,7 +492,7 @@ var (
 	cmpProtoReflectOpt = cmp.FilterValues(func(a, b interface{}) bool {
 		_, ok1 := a.(protoreflect.List)
 		_, ok2 := a.(protoreflect.List)
-		panic("x")
+		glog.Infof("filtervalues called on %v, %v", reflect.ValueOf(a), reflect.ValueOf(b))
 		return ok1 && ok2
 	}, reflectListTransform)
 
