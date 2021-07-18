@@ -4,6 +4,8 @@
 package wirepath
 
 import (
+	"fmt"
+	"reflect"
 	"regexp"
 	"testing"
 
@@ -95,6 +97,57 @@ func TestGetValue(t *testing.T) {
 			},
 			want: nil,
 		},
+		{
+			name: "child of repeated field",
+			path: MustParse(`8(proto_imports)[1]/5(proto_tag)`).Proto(),
+			within: &testproto.Example{
+				Children: []*testproto.Example{
+					{},
+					{ProtoTag: 42},
+				},
+			},
+			want: int32(42),
+		},
+		{
+			name: "child of repeated field",
+			path: MustParse(`8(proto_imports)[2]/5(proto_tag)`).Proto(),
+			within: &testproto.Example{
+				Children: []*testproto.Example{
+					{},
+					{ProtoTag: 42},
+				},
+			},
+			wantErr: true, // out of bounds
+		},
+		{
+			name: "child of repeated field",
+			path: MustParse(`8(proto_imports)/5(proto_tag)`).Proto(),
+			within: &testproto.Example{
+				Children: []*testproto.Example{
+					{},
+					{ProtoTag: 42},
+				},
+			},
+			wantErr: true, // cannot specify a field (proto_tag) of a list.
+		},
+		{
+			name: "child of repeated field",
+			path: MustParse(`8(proto_imports)`).Proto(),
+			within: &testproto.Example{
+				Children: []*testproto.Example{
+					{},
+					{ProtoTag: 42},
+				},
+			},
+			want: func() protoreflect.List {
+				l := newEZlist(&testproto.Example{})
+				return l
+			}(),
+			// want: []*testproto.Example{
+			// 	{},
+			// 	{ProtoTag: 42},
+			// },
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,12 +155,16 @@ func TestGetValue(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to parse: %v", err)
 			}
-			got, err := GetValue(parsed, tt.within)
+			gotValue, err := GetValue(parsed, tt.within)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetValue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if diff := cmp.Diff(tt.want, got.Interface(), protocmp.Transform()); diff != "" {
+
+			got := gotValue.Interface()
+			w, g := &tt.want, &got
+			if diff := cmp.Diff(w, g, protocmp.Transform(), cmpProtoReflectOpt); diff != "" {
+				//if diff := cmp.Diff(tt.want, got.Interface(), protocmp.Transform(), reflectListTransform, transform2); diff != "" {
 				t.Errorf("GetValue() got unexpected diff (-want, +got):\n%s", diff)
 			}
 		})
@@ -220,12 +277,6 @@ func TestDebugString(t *testing.T) {
 			againstValue: protoreflect.ValueOfMessage((&testproto.Example{}).ProtoReflect()),
 			want:         "10(child)/4(proto_type)",
 		},
-		// {
-		// 	name:         "roundtrip_1",
-		// 	path:         MustParse("10/4").Proto(),
-		// 	againstValue: protoreflect.Value{},
-		// 	want:         "10(child)/4(proto_type)",
-		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -434,4 +485,123 @@ func TestParseProtobufStringLiteral(t *testing.T) {
 			}
 		})
 	}
+}
+
+var (
+	cmpProtoReflectOpt = cmp.FilterValues(func(a, b interface{}) bool {
+		_, ok1 := a.(protoreflect.List)
+		_, ok2 := a.(protoreflect.List)
+		panic("x")
+		return ok1 && ok2
+	}, reflectListTransform)
+
+	reflectListTransform = cmp.Transformer("listToSlice", func(list protoreflect.List) interface{} {
+		if !list.IsValid() {
+			return nil
+		}
+		elemType := reflect.TypeOf(list.NewElement().Interface())
+		out := reflect.MakeSlice(elemType, list.Len(), list.Len())
+		for i := 0; i < list.Len(); i++ {
+			out.Index(i).Set(reflect.ValueOf(list.Get(i).Interface()))
+		}
+		return out.Interface()
+	})
+)
+
+var transform3 = cmp.Transformer("listToSlice", func(list protoreflect.List) []protoreflect.Value {
+	out := make([]protoreflect.Value, list.Len())
+	for i := 0; i < list.Len(); i++ {
+		out[i] = list.Get(i)
+	}
+	return out
+})
+
+var transform2 = cmp.Comparer(func(a, b protoreflect.List) bool {
+	//out := make([]protoreflect.Value, list.Len())
+	panic(fmt.Sprintf("comparing %v and %v", a, b))
+	// if a.Len() != b.Len() {
+	// 	return false
+	// }
+	// for i := 0; i < list.Len(); i++ {
+	// 	out[i] = list.Get(i)
+	// }
+	// return out
+})
+
+type ezList struct {
+	slice   []protoreflect.Value
+	newElem func() protoreflect.Value
+}
+
+func newEZlist(prototype proto.Message) *ezList {
+	return &ezList{
+		nil,
+		func() protoreflect.Value {
+			return protoreflect.ValueOf(proto.Clone(prototype))
+		},
+	}
+}
+
+// Len reports the number of entries in the List.
+// Get, Set, and Truncate panic with out of bound indexes.
+func (l *ezList) Len() int {
+	return len(l.slice)
+}
+
+// Get retrieves the value at the given index.
+// It never returns an invalid value.
+func (l *ezList) Get(i int) protoreflect.Value {
+	return l.slice[i]
+}
+
+// Set stores a value for the given index.
+// When setting a composite type, it is unspecified whether the set
+// value aliases the source's memory in any way.
+//
+// Set is a mutating operation and unsafe for concurrent use.
+func (l *ezList) Set(i int, v protoreflect.Value) {
+	l.slice[i] = v
+}
+
+// Append appends the provided value to the end of the list.
+// When appending a composite type, it is unspecified whether the appended
+// value aliases the source's memory in any way.
+//
+// Append is a mutating operation and unsafe for concurrent use.
+func (l *ezList) Append(v protoreflect.Value) {
+	l.slice = append(l.slice, v)
+}
+
+// AppendMutable appends a new, empty, mutable message value to the end
+// of the list and returns it.
+// It panics if the list does not contain a message type.
+func (l *ezList) AppendMutable() protoreflect.Value {
+	e := l.newElem()
+	l.Append(e)
+	return e
+}
+
+// Truncate truncates the list to a smaller length.
+//
+// Truncate is a mutating operation and unsafe for concurrent use.
+func (l *ezList) Truncate(newLen int) {
+	l.slice = l.slice[0:newLen]
+}
+
+// NewElement returns a new value for a list element.
+// For enums, this returns the first enum value.
+// For other scalars, this returns the zero value.
+// For messages, this returns a new, empty, mutable value.
+func (l *ezList) NewElement() protoreflect.Value {
+	return l.newElem()
+}
+
+// IsValid reports whether the list is valid.
+//
+// An invalid list is an empty, read-only value.
+//
+// Validity is not part of the protobuf data model, and may not
+// be preserved in marshaling or other operations.
+func (l *ezList) IsValid() bool {
+	return true
 }
