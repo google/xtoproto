@@ -1,7 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "go_default_library",
+    name = "iri",
     srcs = [
         "iri.go",
         "iri_resolve.go",
@@ -11,7 +11,7 @@ go_library(
 )
 
 go_test(
-    name = "go_default_test",
+    name = "iri_test",
     srcs = ["iri_test.go"],
-    embed = [":go_default_library"],
+    embed = [":iri"],
 )

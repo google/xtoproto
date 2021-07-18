@@ -4,7 +4,7 @@ load("@xtoproto//bazel:defs.bzl", "go_xtoproto_converter_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "go_default_library",
+    name = "example01",
     embed = [":mypackage_go_proto"],
     importpath = "github.com/google/xtoproto/examples/example01",
     visibility = ["//visibility:public"],

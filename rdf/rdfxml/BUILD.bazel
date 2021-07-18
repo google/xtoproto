@@ -1,7 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "go_default_library",
+    name = "rdfxml",
     srcs = [
         "rdfxml.go",
         "rdfxml_xmlname.go",
@@ -9,18 +9,18 @@ go_library(
     importpath = "github.com/google/xtoproto/rdf/rdfxml",
     visibility = ["//visibility:public"],
     deps = [
-        "//rdf/iri:go_default_library",
-        "//rdf/ntriples:go_default_library",
+        "//rdf/iri",
+        "//rdf/ntriples",
     ],
 )
 
 go_test(
-    name = "go_default_test",
+    name = "rdfxml_test",
     srcs = ["rdfxml_test.go"],
-    embed = [":go_default_library"],
+    embed = [":rdfxml"],
     deps = [
-        "//rdf/ntriples:go_default_library",
-        "//rdf/rdfxml/rdftestcases:go_default_library",
-        "@com_github_google_go_cmp//cmp:go_default_library",
+        "//rdf/ntriples",
+        "//rdf/rdfxml/rdftestcases",
+        "@com_github_google_go_cmp//cmp",
     ],
 )

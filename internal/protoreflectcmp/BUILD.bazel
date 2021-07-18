@@ -1,7 +1,7 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
-    name = "go_default_library",
+    name = "protoreflectcmp",
     srcs = [
         "protoreflectcmp.go",
         "protoreflectcmp_list_impl.go",
@@ -9,22 +9,22 @@ go_library(
     importpath = "github.com/google/xtoproto/internal/protoreflectcmp",
     visibility = ["//:__subpackages__"],
     deps = [
-        "@com_github_google_go_cmp//cmp:go_default_library",
-        "@com_github_google_go_cmp//cmp/cmpopts:go_default_library",
-        "@org_golang_google_protobuf//proto:go_default_library",
-        "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",
+        "@com_github_google_go_cmp//cmp",
+        "@com_github_google_go_cmp//cmp/cmpopts",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoreflect",
     ],
 )
 
 go_test(
-    name = "go_default_test",
+    name = "protoreflectcmp_test",
     srcs = ["protoreflectcmp_test.go"],
-    embed = [":go_default_library"],
+    embed = [":protoreflectcmp"],
     deps = [
-        "//proto/wirepath/testproto:go_default_library",
-        "@com_github_google_go_cmp//cmp:go_default_library",
-        "@org_golang_google_protobuf//proto:go_default_library",
-        "@org_golang_google_protobuf//reflect/protoreflect:go_default_library",
-        "@org_golang_google_protobuf//testing/protocmp:go_default_library",
+        "//proto/wirepath/testproto",
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//reflect/protoreflect",
+        "@org_golang_google_protobuf//testing/protocmp",
     ],
 )
