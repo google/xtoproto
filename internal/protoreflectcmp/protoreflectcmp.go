@@ -7,122 +7,59 @@ import (
 	"reflect"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// Transform returns a cmp.Option that will make protoreflect.List instances
+// comparable to slices of proto messages.
+//
+// The slice type used for comparison should be a slice of some non-interface
+// type. cmp.Equal(<some protoreflect.List instance>,
+// []proto.Message{&mypb.X{}}) will not work, while cmp.Equal(<some
+// protoreflect.List instance>, []*mypb.X{&mypb.X{}}) will.
+func Transform(thisLibraryOpt ...Option) cmp.Option {
+	var opts cmp.Options
+	opts = append(opts, compareListsOpt)
+	p := &params{
+		checkListElementType: true,
+	}
+	for _, o := range thisLibraryOpt {
+		o.setParams(p)
+	}
+
+	if !p.checkListElementType {
+		opts = append(opts, cmpopts.IgnoreFields(repeatedField{}, "MessageName"))
+	}
+
+	return opts
+}
+
+type Option struct {
+	setParams func(p *params)
+}
+
+type params struct {
+	checkListElementType bool
+}
+
+// If specified, ignores differences between the element types of two lists.
+// This may be needed if comparing []proto.Message{} to protoreflect.List.
+func IgnoreElementType() Option {
+	return Option{
+		setParams: func(p *params) {
+			p.checkListElementType = false
+		},
+	}
+}
+
 var (
 	protoMessageType = reflect.ValueOf(func(proto.Message) {}).Type().In(0)
 	enumNumberType   = reflect.TypeOf(func(protoreflect.EnumNumber) {}).In(0)
-
-	mainOpt = cmp.FilterValues(func(a, b interface{}) bool {
-		asymmetric := func(a, b interface{}) bool {
-			_, ok := a.(protoreflect.List)
-			if !ok {
-				return false
-			}
-			slice := makeProtoMessageSlice(b)
-			if slice == nil {
-				return false
-			}
-			// Check that the element type of the slice is assignable to proto.Message.
-			// Now check that elements of a and b are both
-			listElemIsProto := reflect.TypeOf(b).Elem().AssignableTo(protoMessageType)
-
-			return listElemIsProto
-		}
-		return asymmetric(a, b) || asymmetric(b, a)
-	}, reflectListTransform)
-
-	reflectListTransform = cmp.Transformer("listToSlice", func(x interface{}) interface{} {
-		list := x.(protoreflect.List)
-		if !list.IsValid() {
-			return nil
-		}
-		switch list.NewElement().Interface().(type) {
-		case protoreflect.ProtoMessage:
-			out := make([]proto.Message, list.Len())
-			for i := 0; i < list.Len(); i++ {
-				out[i] = list.Get(i).Message().Interface()
-			}
-			return out
-		default:
-			return list
-		}
-		// elemType := reflect.TypeOf(list.NewElement().Interface())
-		// out := reflect.MakeSlice(reflect.SliceOf(elemType), list.Len(), list.Len())
-		// for i := 0; i < list.Len(); i++ {
-		// 	out.Index(i).Set(reflect.ValueOf(list.Get(i).Interface()))
-		// }
-		// return out.Interface()
-	})
 )
 
-type protoMessageSlice struct {
-	value interface{}
-}
-
-// makeProtoMessageSlice returns a *protoMessageSlice if the given argument is a
-// slice with an element type that implements proto.Message. Otherwise, nil is returned.
-func makeProtoMessageSlice(value interface{}) *protoMessageSlice {
-	if value == nil {
-		return nil
-	}
-	t := reflect.TypeOf(value)
-	if t.Kind() != reflect.Slice {
-		return nil
-	}
-	// Check that the element type of the slice is assignable to proto.Message.
-	// Now check that elements of a and b are both
-	if !t.Elem().AssignableTo(protoMessageType) {
-		return nil
-	}
-	return &protoMessageSlice{}
-}
-
-func (s *protoMessageSlice) isValid() bool { return s != nil }
-
-func (s *protoMessageSlice) transformListToMatch(list protoreflect.List) interface{} {
-	if _, isMessage := list.NewElement().Interface().(protoreflect.Message); !isMessage {
-		panic(fmt.Errorf("cannot transform list of non-messages to be comparable to a list of messages: %v", list))
-	}
-	out := make([]proto.Message, list.Len())
-	for i := 0; i < list.Len(); i++ {
-		out[i] = list.Get(i).Message().Interface()
-	}
-	return out
-}
-
-// func transformValueToMatchStructure(v protoreflect.Value, matchedValue interface{}) (interface{}, bool) {
-// 	switch v.Interface().(type) {
-// 	case protoreflect.List:
-// 		if matchedValue == nil {
-// 			return nil, false
-// 		}
-// 		sliceType := reflect.TypeOf(matchedValue)
-// 		if sliceType.Kind() != reflect.Kind() {
-
-// 		}
-// 	}
-// }
-
-var opt3 = cmp.FilterValues(func(a, b interface{}) bool {
-	asymmetric := func(a, b interface{}) bool {
-		aAnalysis := analyzeValue(a)
-		bAnalysis := analyzeValue(b)
-		panic(fmt.Errorf("filterValues(%v, %v)", aAnalysis, bAnalysis))
-		if a == nil || b == nil {
-			return false
-		}
-		if list, ok := a.(protoreflect.List); ok {
-			return transformListAndSliceToBeComparable(list, b) != nil
-		}
-		return false
-	}
-	return asymmetric(a, b) || asymmetric(b, a)
-}, cmp.Transformer("transformListAndSliceToBeComparable", transformToComparableList))
-
-var opt2 = cmp.FilterValues(func(a, b interface{}) bool {
+var compareListsOpt = cmp.FilterValues(func(a, b interface{}) bool {
 	aAnalysis := analyzeValue(a)
 	bAnalysis := analyzeValue(b)
 	bothNormalizeToSlice := aAnalysis.NormalizedSlice != nil && bAnalysis.NormalizedSlice != nil
@@ -135,27 +72,6 @@ var opt2 = cmp.FilterValues(func(a, b interface{}) bool {
 }, cmp.Transformer("normalizeList", func(x interface{}) interface{} {
 	return analyzeValue(x).NormalizedSlice
 }))
-
-func transformToComparableList(listOrSlice interface{}) *genericComparableList {
-	if list, ok := listOrSlice.(protoreflect.List); ok {
-		if !list.IsValid() {
-			return nil
-		}
-		elemType := reflect.TypeOf(list.NewElement().Interface())
-		listSlice := reflect.New(reflect.SliceOf(elemType))
-		listSlice.SetLen(list.Len())
-		for i := 0; i < list.Len(); i++ {
-			listSlice.Index(i).Set(reflect.ValueOf(list.Get(i).Interface()))
-		}
-		return normalizeSlice(listSlice)
-	}
-	sliceType := reflect.TypeOf(listOrSlice)
-	if sliceType.Kind() != reflect.Slice {
-		return nil
-	}
-
-	return nil
-}
 
 type analysis struct {
 	IsList           bool
@@ -303,57 +219,4 @@ func makeSliceOfElementType(srcSlice interface{}, elemType reflect.Type) reflect
 		normalizedSlice.Index(i).Set(value)
 	}
 	return normalizedSlice
-}
-
-// normalizeSlice transforms slices of
-func normalizeSlice(slice interface{}) *genericComparableList {
-	sliceType := reflect.TypeOf(slice)
-	if sliceType.Kind() != reflect.Slice {
-		panic(fmt.Errorf("argument is not a slice:%v", slice))
-	}
-	panic("cannot normalize slice yet")
-}
-
-type genericComparableList struct {
-	ElementType string
-	Elements    interface{}
-}
-
-func transformListAndSliceToBeComparable(list protoreflect.List, slice interface{}) *listSliceComparison {
-	if slice == nil || !list.IsValid() {
-		return nil
-	}
-	sliceType := reflect.TypeOf(slice)
-	if sliceType.Kind() != reflect.Slice {
-		return nil
-	}
-	listElemPrototype := list.NewElement().Interface()
-	// If the list element's value is assignable to the slice's element type,
-	// make a new slice with the same type and assign each element of list to an
-	// element of the new slice. Return the new slice and the unmodified second
-	// argument.
-	if reflect.ValueOf(listElemPrototype).Type().AssignableTo(sliceType.Elem()) {
-		listSlice := reflect.New(sliceType)
-		listSlice.SetLen(list.Len())
-		for i := 0; i < list.Len(); i++ {
-			listSlice.Index(i).Set(reflect.ValueOf(list.Get(i).Interface()))
-		}
-		return &listSliceComparison{
-			comparisonType: fmt.Sprintf("protoreflect.List element is assignable to %v", sliceType.Elem()),
-			a:              listSlice,
-			b:              slice,
-		}
-	}
-	return nil
-}
-
-type listSliceComparison struct {
-	comparisonType string
-	a, b           interface{}
-}
-
-// Transform returns a cmp.Option that will make protoreflect.List instances
-// comparable to slices of proto messages.
-func Transform() cmp.Option {
-	return opt2
 }
