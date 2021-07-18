@@ -27,6 +27,7 @@ filegroup(
         "//proto/recordtoproto:recordtoproto_go_proto",
         "//proto/service:service_go_proto",
         "//proto/wirepath:wirepath_go_proto",
+        "//proto/wirepath/testproto:testproto_go_proto",
     ],
     # Based on https://github.com/bazelbuild/rules_go/blob/740ada94dfda52f2a079f718858e8b2b8ee0fdc6/proto/def.bzl#L130
     output_group = "go_generated_srcs",

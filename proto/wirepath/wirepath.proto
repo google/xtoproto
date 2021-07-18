@@ -52,18 +52,15 @@ message WirePath {
         string map_key_string = 5;
         int32 map_key_int32 = 6;
         int64 map_key_int64 = 7;
-        bytes map_key_bytes = 8;
-        double map_key_double = 9;
-        float map_key_float = 10;
-        uint32 map_key_uint32 = 11;
-        uint64 map_key_uint64 = 12;
-        sint32 map_key_sint32 = 13;
-        sint64 map_key_sint64 = 14;
-        fixed32 map_key_fixed32 = 15;
-        fixed64 map_key_fixed64 = 16;
-        sfixed32 map_key_sfixed32 = 17;
-        sfixed64 map_key_sfixed64 = 18;
-        bool map_key_bool = 19;
+        uint32 map_key_uint32 = 8;
+        uint64 map_key_uint64 = 9;
+        sint32 map_key_sint32 = 10;
+        sint64 map_key_sint64 = 11;
+        fixed32 map_key_fixed32 = 12;
+        fixed64 map_key_fixed64 = 13;
+        sfixed32 map_key_sfixed32 = 14;
+        sfixed64 map_key_sfixed64 = 15;
+        bool map_key_bool = 16;
     }
 
     enum SpecialPath {
