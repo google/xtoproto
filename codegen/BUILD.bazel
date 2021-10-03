@@ -11,4 +11,8 @@ go_test(
     name = "codegen_test",
     srcs = ["codegen_imports_test.go"],
     embed = [":codegen"],
+    deps = [
+        "@com_github_google_go_cmp//cmp",
+        "@org_golang_x_sync//errgroup",
+    ],
 )
