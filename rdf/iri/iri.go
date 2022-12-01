@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // An IRI (Internationalized Resource Identifier) within an RDF graph is a
@@ -43,7 +44,13 @@ func Parse(s string) (IRI, error) {
 	if fragment != "" && !ifragmentRE.MatchString(fragment) {
 		return "", fmt.Errorf("%q is not a valid IRI: invalid fragment %q does not match regexp %s", s, fragment, ifragmentRE)
 	}
-	return IRI(s), nil
+	parsed := IRI(s)
+
+	if _, err := parsed.normalizePercentEncoding(); err != nil {
+		return "", fmt.Errorf("%q is not a valid IRI: invalid percent encoding: %w", s, err)
+	}
+
+	return parsed, nil
 }
 
 // Check returns an error if the IRI is invalid.
@@ -165,8 +172,9 @@ const (
 	unreserved  = (`(?:` + alphaChars + "|" + digitChars + `|[\-\._~]` + `)`)
 	iunreserved = (`(?:` + alphaChars + "|" + digitChars + `|[\-\._~]|` + ucschar + `)`)
 
-	subDelims  = `[!\$\&\'\(\)\*\+\,\;\=]`
-	pctEncoded = `%` + hex + hex
+	subDelims           = `[!\$\&\'\(\)\*\+\,\;\=]`
+	pctEncoded          = `%` + hex + hex
+	pctEncodedOneOrMore = `(?:(?:` + pctEncoded + `)+)`
 
 	pchar  = "(?:" + unreserved + "|" + pctEncoded + "|" + subDelims + ")"
 	ipchar = "(?:" + iunreserved + "|" + pctEncoded + "|" + subDelims + ")"
@@ -250,13 +258,28 @@ var (
 	iqueryRE            = mustCompileNamed("iquery", "^"+ipath+"$")
 	ifragmentRE         = mustCompileNamed("ifragment", "^"+ifragment+"$")
 
-	percentEncodedChar = mustCompileNamed("percentEncodedChar", pctEncoded)
-	iunreservedRE      = mustCompileNamed("iunreservedRE", "^"+iunreserved+"$")
+	percentEncodedChar      = mustCompileNamed("percentEncodedChar", pctEncoded)
+	pctEncodedCharOneOrMore = mustCompileNamed("pctEncodedOneOrMore", pctEncodedOneOrMore)
+	iunreservedRE           = mustCompileNamed("iunreservedRE", "^"+iunreserved+"$")
 
 	hexToRune = func() map[string]rune {
 		m := map[string]rune{}
 		for i := 0; i <= 255; i++ {
 			m[fmt.Sprintf("%02X", i)] = rune(i)
+		}
+		return m
+	}()
+	hexToByte = func() map[string]byte {
+		m := map[string]byte{}
+		for i := 0; i <= 255; i++ {
+			m[fmt.Sprintf("%02X", i)] = byte(i)
+		}
+		return m
+	}()
+	byteToUppercasePercentEncoding = func() map[byte]string {
+		m := map[byte]string{}
+		for i := 0; i <= 255; i++ {
+			m[byte(i)] = fmt.Sprintf("%%%02X", i)
 		}
 		return m
 	}()
@@ -279,18 +302,57 @@ var (
 // RFC3987 discusses this normalization procedure in 5.3.2.3:
 // https://www.ietf.org/rfc/rfc3987.html#section-5.3.2.3.
 func (iri IRI) NormalizePercentEncoding() IRI {
-	replaced := percentEncodedChar.ReplaceAllStringFunc(string(iri), func(pctEscaped string) string {
-		digitsStr := strings.ToUpper(pctEscaped[1:])
-		char, ok := hexToRune[digitsStr]
-		if !ok {
-			panic(fmt.Errorf("hex %q not present in %+v", char, hexToRune)) // should not occur because of regexp
+	normalized, err := iri.normalizePercentEncoding()
+	if err != nil {
+		return iri
+	}
+	return normalized
+}
+
+func (iri IRI) normalizePercentEncoding() (IRI, error) {
+	var errs []error
+	// Find consecutive percent-encoded octets and encode them together.
+	replaced := pctEncodedCharOneOrMore.ReplaceAllStringFunc(string(iri), func(pctEscaped string) string {
+		octets := make([]byte, len(pctEscaped)/3)
+		for i := 0; i < len(octets); i++ {
+			start := i * 3
+			digitsStr := strings.ToUpper(pctEscaped[start+1 : start+3])
+			octet, ok := hexToByte[digitsStr]
+			if !ok {
+				panic(fmt.Errorf("internal error: hex %q not present in %+v", octet, hexToRune)) // should not occur because of regexp
+			}
+			octets[i] = octet
 		}
-		if c := string(char); iunreservedRE.MatchString(c) {
-			return c
+
+		normalized := ""
+		unconsumedOctets := octets
+		octetsOffset := 0
+		for len(unconsumedOctets) > 0 {
+			codePoint, size := utf8.DecodeRune(unconsumedOctets)
+			if codePoint == utf8.RuneError {
+				errs = append(errs, fmt.Errorf("percent-encoded sequence %q  contains invalid UTF-8 code point at start of byte sequence %+v", pctEscaped[octetsOffset*3:], unconsumedOctets))
+				return pctEscaped
+			}
+
+			if iunreservedRE.MatchString(string(codePoint)) {
+				normalized += string(codePoint)
+			} else {
+				buf := make([]byte, 4)
+				codePointOctetCount := utf8.EncodeRune(buf, codePoint)
+				for i := 0; i < codePointOctetCount; i++ {
+					normalized += byteToUppercasePercentEncoding[buf[i]]
+				}
+			}
+			unconsumedOctets = unconsumedOctets[size:]
+			octetsOffset += size
 		}
-		return strings.ToUpper(pctEscaped)
+
+		return normalized
 	})
-	return IRI(replaced)
+	if len(errs) != 0 {
+		return IRI(replaced), errs[0]
+	}
+	return IRI(replaced), nil
 }
 
 func mustCompileNamed(name, expr string) *regexp.Regexp {

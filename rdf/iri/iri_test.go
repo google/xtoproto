@@ -38,9 +38,20 @@ func TestIRI_NormalizePercentEncoding(t *testing.T) {
 			want: `http://é.example.org`,
 		},
 		{
-			name: "Preserve percent encoding when it is necessary",
+			// 181 is not a valid utf-8 octal. Check out https://www.utf8-chartable.de/.
+			name: "Invalid UTF-8 code point 181",
 			in:   `http://é.example.org/dog%20house/%B5`,
+			want: `http://é.example.org/dog%20house/%B5`,
+		},
+		{
+			name: "Preserve percent encoding when it is necessary",
+			in:   `http://é.example.org/dog%20house/%c2%B5`,
 			want: `http://é.example.org/dog%20house/µ`,
+		},
+		{
+			name: "Example from https://github.com/google/xtoproto/issues/23",
+			in:   "http://wiktionary.org/wiki/%E1%BF%AC%CF%8C%CE%B4%CE%BF%CF%82",
+			want: `http://wiktionary.org/wiki/Ῥόδος`,
 		},
 	}
 	for _, tt := range tests {
@@ -72,6 +83,18 @@ func TestParse(t *testing.T) {
 		{
 			name:    "http://example.org/#André then some whitespace",
 			in:      "http://example.org/#André then some whitespace",
+			want:    ``,
+			wantErr: true,
+		},
+		{
+			name:    "invalid utf-8 B5",
+			in:      `http://é.example.org/dog%20house/%B5`,
+			want:    ``,
+			wantErr: true,
+		},
+		{
+			name:    "invalid utf-8 B5",
+			in:      `http://é.example.org/dog%20house/%20%b5`,
 			want:    ``,
 			wantErr: true,
 		},
