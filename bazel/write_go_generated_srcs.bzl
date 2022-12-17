@@ -33,23 +33,15 @@ def _output_go_library_srcs_impl(ctx):
     _copy(ctx, srcs_of_library[0], ctx.outputs.out)
 
 def _copy(ctx, in_file, out_file):
+  # based on https://github.com/bazelbuild/examples/blob/main/rules/shell_command/rules.bzl
   ctx.actions.run_shell(
       # Input files visible to the action.
       inputs = [in_file],
       # Output files that must be created by the action.
       outputs = [out_file],
-      # The progress message uses `short_path` (the workspace-relative path)
-      # since that's most meaningful to the user. It omits details from the
-      # full path that would help distinguish whether the file is a source
-      # file or generated, and (if generated) what configuration it is built
-      # for.
       progress_message = "Copying {} to {}".format(in_file.path, out_file.path),
-      # The command to run. Alternatively we could use '$1', '$2', etc., and
-      # pass the values for their expansion to `run_shell`'s `arguments`
-      # param (see convert_to_uppercase below). This would be more robust
-      # against escaping issues. Note that actions require the full `path`,
-      # not the ambiguous truncated `short_path`.
-      command = "cp '%s' '%s'" % (in_file.path, out_file.path),
+      arguments = [in_file.path, out_file.path],
+      command = """cp "$1" "$2" """
     )
 
 output_go_library_srcs = rule(

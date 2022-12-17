@@ -2,6 +2,7 @@ load("@rules_proto//proto:defs.bzl", "proto_library")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 load("@xtoproto//bazel:defs.bzl", "go_xtoproto_converter_library")
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
+load("//bazel:write_go_generated_srcs.bzl", "write_go_proto_srcs")
 
 go_library(
     name = "example01",
@@ -22,4 +23,10 @@ go_proto_library(
     importpath = "github.com/google/xtoproto/examples/example01",
     proto = ":mypackage_proto",
     visibility = ["//visibility:public"],
+)
+
+write_go_proto_srcs(
+    name = "write_generated_protos",
+    go_proto_library = ":mypackage_go_proto",
+    src = "example01.pb.go",
 )
