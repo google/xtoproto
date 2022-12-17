@@ -8,7 +8,6 @@ go_library(
     ],
     importpath = "github.com/google/xtoproto/rdf/iri",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_golang_glog//:glog"],
 )
 
 go_test(
