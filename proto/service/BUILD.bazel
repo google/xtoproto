@@ -31,7 +31,6 @@ go_proto_library(
 
 write_go_proto_srcs(
     name = "write_generated_protos",
-    go_proto_library = ":service_go_proto",
     src = "service.pb.go",
+    go_proto_library = ":service_go_proto",
 )
-

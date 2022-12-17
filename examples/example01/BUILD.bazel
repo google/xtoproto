@@ -27,6 +27,6 @@ go_proto_library(
 
 write_go_proto_srcs(
     name = "write_generated_protos",
-    go_proto_library = ":mypackage_go_proto",
     src = "example01.pb.go",
+    go_proto_library = ":mypackage_go_proto",
 )

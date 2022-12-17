@@ -3,7 +3,6 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 load("@io_bazel_rules_go//proto:def.bzl", "go_proto_library")
 load("//bazel:write_go_generated_srcs.bzl", "write_go_proto_srcs")
 
-
 proto_library(
     name = "testproto_proto",
     srcs = ["testproto.proto"],
@@ -27,6 +26,6 @@ go_proto_library(
 
 write_go_proto_srcs(
     name = "write_generated_protos",
-    go_proto_library = ":testproto_go_proto",
     src = "testproto.pb.go",
+    go_proto_library = ":testproto_go_proto",
 )

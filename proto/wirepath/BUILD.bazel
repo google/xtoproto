@@ -26,6 +26,6 @@ go_library(
 
 write_go_proto_srcs(
     name = "write_generated_protos",
-    go_proto_library = ":wirepath_go_proto",
     src = "wirepath.pb.go",
+    go_proto_library = ":wirepath_go_proto",
 )
