@@ -18,6 +18,7 @@ import (
 	"encoding"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/google/xtoproto/textcoder"
 )
@@ -28,6 +29,7 @@ var (
 		ptr := &i
 		return reflect.TypeOf(ptr).Elem()
 	}()
+	defaultRegistryMapMutex = sync.RWMutex{}
 )
 
 // CellContext is passed to the function parsing a single CSV cell.
@@ -84,6 +86,7 @@ func getOrCreateCellParserForType(t reflect.Type) (cellParser, error) {
 		return nil, fmt.Errorf("internal error: must only pass pointers to getOrCreateCellParserForType, got %v", t)
 	}
 
+	defaultRegistryMapMutex.Lock()
 	parser := defaultRegistry.cellParsers[t]
 	if parser == nil {
 		parser = &registeredCellParser{}
@@ -96,6 +99,7 @@ func getOrCreateCellParserForType(t reflect.Type) (cellParser, error) {
 		parser.decoder = dec
 		return parser, nil
 	}
+	defaultRegistryMapMutex.Unlock()
 
 	return nil, fmt.Errorf("no cell parser registered for type %v", t)
 
