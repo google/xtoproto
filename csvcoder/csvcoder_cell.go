@@ -86,11 +86,12 @@ func getOrCreateCellParserForType(t reflect.Type) (cellParser, error) {
 		return nil, fmt.Errorf("internal error: must only pass pointers to getOrCreateCellParserForType, got %v", t)
 	}
 	
-	defaultRegistryMapMutex.Lock()
 	parser := defaultRegistry.cellParsers[t]
 	if parser == nil {
 		parser = &registeredCellParser{}
+		defaultRegistryMapMutex.Lock()
 		defaultRegistry.cellParsers[t] = parser
+		defaultRegistryMapMutex.Unlock()
 	}
 	if parser.impl != nil {
 		return parser, nil
@@ -99,7 +100,6 @@ func getOrCreateCellParserForType(t reflect.Type) (cellParser, error) {
 		parser.decoder = dec
 		return parser, nil
 	}
-	defaultRegistryMapMutex.Unlock()
 
 	return nil, fmt.Errorf("no cell parser registered for type %v", t)
 
