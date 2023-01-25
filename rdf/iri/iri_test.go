@@ -81,6 +81,21 @@ func TestParse(t *testing.T) {
 			want: `http://example.org/#André`,
 		},
 		{
+			name: "valid urn:uuid",
+			in:   `urn:uuid:6c689097-8097-4421-9def-05e835f2dbb8`,
+			want: `urn:uuid:6c689097-8097-4421-9def-05e835f2dbb8`,
+		},
+		{
+			name: "valid urn:uuid:",
+			in:   `urn:uuid:`,
+			want: `urn:uuid:`,
+		},
+		{
+			name: "valid a:b:c:",
+			in:   `a:b:c:`,
+			want: `a:b:c:`,
+		},
+		{
 			name:    "http://example.org/#André then some whitespace",
 			in:      "http://example.org/#André then some whitespace",
 			want:    ``,

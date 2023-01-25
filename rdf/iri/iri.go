@@ -147,7 +147,8 @@ func (p *parts) toIRI() IRI {
 // - https://www.ietf.org/rfc/rfc3987.html#section-5
 //    - https://www.ietf.org/rfc/rfc3987.html#section-5.3.2.3 - percent encoding
 
-// Regular expression const strings
+// Regular expression const strings, mostly derived from
+// https://www.ietf.org/rfc/rfc3987.html#section-2.2.
 const (
 	hex        = `[0-9A-Fa-f]`
 	alphaChars = "[a-zA-Z]" // see https://tools.ietf.org/html/rfc5234 B.1. "ALPHA"
@@ -177,7 +178,7 @@ const (
 	pctEncodedOneOrMore = `(?:(?:` + pctEncoded + `)+)`
 
 	pchar  = "(?:" + unreserved + "|" + pctEncoded + "|" + subDelims + ")"
-	ipchar = "(?:" + iunreserved + "|" + pctEncoded + "|" + subDelims + ")"
+	ipchar = "(?:" + iunreserved + "|" + pctEncoded + "|" + subDelims + `|[\:@])`
 
 	scheme = "(?:" + alphaChars + "(?:" + alphaChars + "|" + digitChars + `|[\+\-\.])*)`
 
