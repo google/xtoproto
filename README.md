@@ -16,6 +16,26 @@ web-based playground hosted on Github](https://google.github.io/xtoproto).
 
 More details about how to use xtoproto will be added soon.
 
+## Design
+
+xtoproto uses example data to infer a both *protobuf definition*, a *source
+record spec*, and a *mapping definition*.
+
+* The *protobuf definition* can be
+represented in a `.proto` file with a custom `message` type for the record being
+inferred.
+* The *source record spec* is a specification for well-formed input data. For a
+  CSV-to-proto translation, this would be a schema for the CSV input: names and
+  types of columns.
+* The *mapping definition* defines how to convert from the source record spec to
+  the destination proto type.
+
+
+### Formats
+The following formats currently have some support:
+
+1. CSV (comma separated values).
+
 ## Building
 
 The project is buildable with Bazel and `go build`. Bazel is recommended because
